@@ -1,0 +1,56 @@
+{
+  "name": "serial-bridge",
+  "version": "1.0.0",
+  "description": "Serial connection bridge for P5.js and creative coding",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "dev": "electron . --dev",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "arduino",
+    "p5js",
+    "serial",
+    "education",
+    "creative-coding"
+  ],
+  "author": "Irtiza Nasar (with help from agentic friends - Claude AI)",
+  "license": "MIT",
+  "dependencies": {
+    "@serialport/parser-readline": "^12.0.0",
+    "express": "^4.18.2",
+    "serialport": "^12.0.0",
+    "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "@electron/notarize": "^3.1.1",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.irtizanasar.serial-bridge",
+    "productName": "Serial Bridge",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "public/**/*",
+      "assets/**/*",
+      "examples/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "public/logo.png"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

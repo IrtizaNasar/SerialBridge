@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino Bridge</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="logo.png" alt="Logo" class="logo-icon-img">
+                    <div>
+                        <h1>Serial Bridge</h1>
+                        <p>Connection Manager</p>
+                    </div>
+                </div>
+                <div class="server-info">
+                    <div class="server-info-label">Server URL</div>
+                    <div class="server-info-value" id="server-url">Loading...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-title">Workspace</div>
+                    <a href="#" class="nav-item active">
+                        <div class="nav-icon">●</div>
+                        All Connections
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-title">Actions</div>
+                    <div class="nav-item" onclick="window.refreshAllPorts()">
+                        <div class="nav-icon">↻</div>
+                        Refresh Ports
+                    </div>
+                    <div class="nav-item" onclick="window.addConnection()">
+                        <div class="nav-icon">+</div>
+                        Add Connection
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-title">Info</div>
+                    <div class="nav-item" onclick="window.showUsageInfo()">
+                        <div class="nav-icon">?</div>
+                        Usage Guide
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="main-header">
+                <h1></h1>
+                <button class="btn btn-primary" onclick="window.addConnection()">
+                    + New Connection
+                </button>
+            </header>
+
+            <div class="main-body">
+                <div class="connection-grid" id="connections">
+                    <div class="empty-state" id="empty-state">
+                        <h3>No connections configured</h3>
+                        <p>Add your first connection to start streaming data to your P5.js projects</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Usage Guide Modal -->
+    <!-- Usage Guide Modal -->
+    <div id="usage-modal" class="modal">
+        <div class="modal-backdrop" onclick="window.closeUsageModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header-bar">
+                <div class="modal-header-title">Usage Guide</div>
+            </div>
+
+            <div class="modal-visual">
+                <div class="visual-icon-box">
+                    <img src="logo.png" alt="App Logo" class="visual-app-logo">
+                </div>
+                <div class="visual-connector">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="visual-icon-box">
+                    <div class="visual-icon p5">P5</div>
+                </div>
+            </div>
+
+            <div class="modal-body-content">
+                <h3>Connect your sketch</h3>
+                <p>
+                    <strong>Serial Bridge</strong> automatically bridges your Arduino devices to the web.
+                    Include the socket.io client and our bridge script to start receiving data in your P5.js sketches.
+                </p>
+
+                <pre class="code-snippet-stripe"><code>&lt;script src="http://localhost:3000/socket.io/socket.io.js"&gt;&lt;/script&gt;
+&lt;script src="http://localhost:3000/arduino-bridge.js"&gt;&lt;/script&gt;</code></pre>
+
+                <h3>Use in P5.js</h3>
+                <p>
+                    Initialize the bridge and listen for data:
+                </p>
+
+                <pre class="code-snippet-stripe"><code>let bridge;
+
+function setup() {
+    createCanvas(400, 400);
+    
+    bridge = new ArduinoBridge();
+    
+    bridge.onData('arduino_1', (data) => {
+        console.log('Received:', data);
+    });
+}</code></pre>
+
+                <div class="help-link">
+                    Need help? Check the <a href="#" onclick="return false;">examples folder</a>
+                </div>
+            </div>
+
+            <div class="modal-footer-action">
+                <button class="modal-main-button" onclick="window.closeUsageModal()">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="client.js"></script>
+</body>
+
+</html>
