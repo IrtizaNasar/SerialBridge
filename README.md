@@ -1,11 +1,11 @@
 <p align="center">
-  <img width="150" alt="logo" src="https://github.com/user-attachments/assets/bb98cc34-f75f-4f10-a55e-c07f656c4bff" />
+  <img width="150" alt="logo" src="assets/docs/logo.png" />
 </p>
 
 <h1 align="center">Serial Bridge</h1>
 
 <p align="center"> A desktop application that creates a bridge between serial devices (Arduino, microcontrollers) and web-based creative coding environments like P5.js. Connect multiple devices simultaneously and access their serial data through a simple JavaScript API.</p>
-<img width="1412" height="1112" alt="image" src="https://github.com/user-attachments/assets/69afe949-da77-4eec-b15e-feed0f9f219b" />
+<img width="1412" alt="image" src="assets/docs/main-interface.png" />
 
 ## Table of Contents
 
@@ -106,7 +106,7 @@ Include the client library in your HTML:
 
 **Note:** The Socket.IO URL should match your bridge server port (default: 3000). The active server URL is displayed in the Arduino Bridge application sidebar under "Server URL".
 
-<img width="275" height="186" alt="image" src="https://github.com/user-attachments/assets/2ab3d3bf-a516-40c5-a52d-7278d7ff29e5" />
+<img width="275" alt="image" src="assets/docs/server-url.png" />
 
 
 Create your sketch:
