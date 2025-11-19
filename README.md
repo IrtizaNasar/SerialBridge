@@ -94,7 +94,7 @@ Include the client library in your HTML:
 <!DOCTYPE html>
 <html>
 <head>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
   <script src="http://localhost:3000/socket.io/socket.io.js"></script>
   <!-- LOADED FROM THE SERIAL BRIDGEAPP: You do NOT need this file in your project folder -->
   <script src="http://localhost:3000/arduino-bridge.js"></script>
