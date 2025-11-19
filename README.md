@@ -85,6 +85,9 @@ void loop() {
 
 ### 3. Create Your P5.js Project
 
+> [!TIP]
+> **Quick Setup**: Use the [p5.js Project Generator](https://marketplace.visualstudio.com/items?itemName=Irti.p5js-project-generator) VS Code extension to instantly generate a P5.js 2.0 project structure.
+
 Include the client library in your HTML:
 
 ```html
