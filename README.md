@@ -39,14 +39,14 @@
 
 ### Download Pre-built Application
 
-Download the latest release for your platform from the [Releases page](https://github.com/IrtizaNasar/arduino-web-bridge/releases).
+Download the latest release for your platform from the [Releases page](https://github.com/IrtizaNasar/SerialBridge/releases).
 
 ### Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/IrtizaNasar/arduino-web-bridge.git
-cd arduino-web-bridge
+git clone https://github.com/IrtizaNasar/SerialBridge.git
+cd SerialBridge
 
 # Install dependencies
 npm install
@@ -93,12 +93,16 @@ Include the client library in your HTML:
 <head>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
   <script src="http://localhost:3000/socket.io/socket.io.js"></script>
-  <script src="path/to/arduino-bridge.js"></script>
+  <!-- LOADED FROM THE SERIAL BRIDGEAPP: You do NOT need this file in your project folder -->
+  <script src="http://localhost:3000/arduino-bridge.js"></script>
   <script src="sketch.js"></script>
 </head>
 <body></body>
 </html>
 ```
+
+> [!IMPORTANT]
+> The `arduino-bridge.js` script is served **dynamically** by the Serial Bridge application. **You do NOT need to download or copy this file.** Just ensure the app is running and the port matches.
 
 **Note:** The Socket.IO URL should match your bridge server port (default: 3000). The active server URL is displayed in the Arduino Bridge application sidebar under "Server URL".
 
@@ -282,7 +286,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 ## Project Structure
 
 ```
-arduino-web-bridge/
+SerialBridge/
 ├── main.js                 # Electron main process
 ├── public/                 # Bridge application UI
 │   ├── index.html
@@ -358,8 +362,8 @@ Contributions are welcome! This project aims to be beginner-friendly and well-do
 ### Development Setup
 
 ```bash
-git clone https://github.com/IrtizaNasar/arduino-web-bridge.git
-cd arduino-web-bridge
+git clone https://github.com/IrtizaNasar/SerialBridge.git
+cd SerialBridge
 npm install
 npm start
 ```
@@ -396,5 +400,5 @@ Designed for use with [P5.js](https://p5js.org/) - a friendly tool for learning 
 ## Support
 
 - **Documentation**: [examples/README.md](examples/README.md)
-- **Issues**: [GitHub Issues](https://github.com/IrtizaNasar/arduino-web-bridge/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/IrtizaNasar/arduino-web-bridge/discussions)
+- **Issues**: [GitHub Issues](https://github.com/IrtizaNasar/SerialBridge/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/IrtizaNasar/SerialBridge/discussions)
