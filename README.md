@@ -45,7 +45,7 @@
 
 Download the latest release for your platform from the [Releases page](https://github.com/IrtizaNasar/SerialBridge/releases).
 
-### Build from Source
+### Build from Source - For Advanced Users
 
 ```bash
 # Clone the repository
