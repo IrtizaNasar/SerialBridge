@@ -1,6 +1,6 @@
 {
   "name": "serial-bridge",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Serial connection bridge for P5.js and creative coding",
   "main": "main.js",
   "scripts": {

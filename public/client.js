@@ -256,16 +256,20 @@
 
             portSelect.innerHTML = '<option value="">Select port...</option>';
 
-            if (data.arduino && data.arduino.length > 0) {
-                data.arduino.forEach(function (port) {
+            // Show ALL ports, not just Arduino ones
+            if (data.all && data.all.length > 0) {
+                data.all.forEach(function (port) {
                     const option = document.createElement('option');
                     option.value = port.path;
-                    option.textContent = port.path + ' - ' + (port.manufacturer || 'Arduino');
+                    // On Windows, manufacturer might be missing or different.
+                    // Show Path (COMx) + Manufacturer if available
+                    const label = port.path + (port.manufacturer ? ' - ' + port.manufacturer : '');
+                    option.textContent = label;
                     portSelect.appendChild(option);
                 });
-                console.log('Found', data.arduino.length, 'Arduino ports');
+                console.log('Found', data.all.length, 'ports');
             } else {
-                console.log('No Arduino ports found');
+                console.log('No ports found');
             }
 
         } catch (error) {
