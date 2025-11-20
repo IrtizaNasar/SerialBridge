@@ -172,7 +172,7 @@ function createServer() {
         httpServer.listen(port, '127.0.0.1')
             .on('listening', () => {
                 serverPort = port;
-                console.log(`[SERVER] Arduino Bridge running on http://localhost:${serverPort}`);
+                console.log(`[SERVER] Serial Bridge running on http://localhost:${serverPort}`);
                 console.log('[SERVER] WebSocket server ready for P5.js connections');
             })
             .on('error', (err) => {
@@ -199,7 +199,7 @@ function createWindow() {
             contextIsolation: true,
             webSecurity: true
         },
-        title: 'Arduino Bridge',
+        title: 'Serial Bridge',
         titleBarStyle: 'hiddenInset',
         backgroundColor: '#050505',
         minWidth: 800,

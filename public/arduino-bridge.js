@@ -1,7 +1,7 @@
 /**
- * Arduino Bridge Client Library
+ * Serial Bridge Client Library
  *
- * A simple client library for connecting P5.js sketches to the Arduino Bridge.
+ * A simple client library for connecting P5.js sketches to the Serial Bridge.
  *
  * Usage:
  *   const bridge = new ArduinoBridge();
@@ -42,7 +42,7 @@ class ArduinoBridge {
     }
 
     /**
-     * Connect to the Arduino Bridge server
+     * Connect to the Serial Bridge server
      */
     connect() {
         if (typeof io === 'undefined') {
@@ -54,12 +54,12 @@ class ArduinoBridge {
 
         this.socket.on('connect', () => {
             this.connected = true;
-            console.log('🌉 Connected to Arduino Bridge');
+            console.log('🌉 Connected to Serial Bridge');
         });
 
         this.socket.on('disconnect', () => {
             this.connected = false;
-            console.log('🔌 Disconnected from Arduino Bridge');
+            console.log('🔌 Disconnected from Serial Bridge');
         });
 
         this.socket.on('serial-data', (data) => {

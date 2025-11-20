@@ -4,15 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arduino Bridge - P5.js Example</title>
+    <title>Serial Bridge - P5.js Example</title>
 
     <!-- P5.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
 
-    <!-- Socket.IO Client (from the Arduino Bridge server) -->
+    <!-- Socket.IO Client (from the Serial Bridge server) -->
     <script src="http://localhost:3000/socket.io/socket.io.js"></script>
 
-    <!-- Arduino Bridge Client Library -->
+    <!-- Serial Bridge Client Library -->
     <script src="http://localhost:3000/arduino-bridge.js"></script>
 
     <style>
@@ -84,7 +84,8 @@
                 <li>2. In the Bridge app, add a connection and select <code>arduino_1</code> as the ID</li>
                 <li>3. Connect your Arduino to a USB port</li>
                 <li>4. Upload the Arduino sketch that sends sensor data (e.g.,
-                    <code>Serial.println(analogRead(A0));</code>)</li>
+                    <code>Serial.println(analogRead(A0));</code>)
+                </li>
                 <li>5. Open this HTML file in your browser</li>
                 <li>6. Watch the visualization respond to your Arduino data!</li>
             </ul>

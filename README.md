@@ -84,7 +84,7 @@ npm run build
 
 ### 1. Connect Your Arduino
 
-1. Launch the Arduino Bridge application
+1. Launch the Serial Bridge application
 2. Click "New Connection" to add an Arduino
 3. Select your Arduino's port from the dropdown
 4. Click "Connect"
@@ -129,7 +129,7 @@ Include the client library in your HTML:
 > [!IMPORTANT]
 > The `arduino-bridge.js` script is served **dynamically** by the Serial Bridge application. **You do NOT need to download or copy this file.** Just ensure the app is running and the port matches.
 
-**Note:** The Socket.IO URL should match your bridge server port (default: 3000). The active server URL is displayed in the Arduino Bridge application sidebar under "Server URL".
+**Note:** The Socket.IO URL should match your bridge server port (default: 3000). The active server URL is displayed in the Serial Bridge application sidebar under "Server URL".
 
 <img width="275" alt="image" src="assets/docs/server-url.png" />
 
@@ -172,7 +172,7 @@ function draw() {
 
 ### Basic Usage (Most Common)
 
-For most users, you'll only need these methods. The Arduino Bridge desktop app handles all connection management through its UI.
+For most users, you'll only need these methods. The Serial Bridge desktop app handles all connection management through its UI.
 
 #### ArduinoBridge Constructor
 
@@ -249,7 +249,7 @@ bridge.onStatus('*', (status, port, id) => {
 
 ## Advanced Usage (Optional)
 
-**Note:** The Arduino Bridge desktop app must still be running for these methods to work. These methods allow you to manage connections programmatically instead of using the desktop app's UI.
+**Note:** The Serial Bridge desktop app must still be running for these methods to work. These methods allow you to manage connections programmatically instead of using the desktop app's UI.
 
 ### When to Use Advanced Methods
 
@@ -360,7 +360,7 @@ let serverPort = 3000; // Change this to your preferred starting port
 - Verify the Arduino is plugged in via USB
 - Check that no other application is using the serial port (close Arduino IDE Serial Monitor)
 - Try refreshing the port list
-- Restart the Arduino Bridge application
+- Restart the Serial Bridge application
 
 **Problem**: Data appears corrupted
 - Ensure baud rates match between Arduino and Bridge (default: 9600)
@@ -370,7 +370,7 @@ let serverPort = 3000; // Change this to your preferred starting port
 ### P5.js Integration Issues
 
 **Problem**: Bridge connection fails in P5.js
-- Verify Arduino Bridge application is running
+- Verify Serial Bridge application is running
 - Check the sidebar in the Bridge app for the server URL (e.g., "http://localhost:3001")
 - Update the Socket.IO script URL to match: `<script src="http://localhost:3001/socket.io/socket.io.js"></script>`
 - The `ArduinoBridge()` constructor will auto-detect the URL from the Socket.IO script

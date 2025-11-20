@@ -1,6 +1,6 @@
-# Arduino Bridge Examples
+# Serial Bridge Examples
 
-This folder contains examples demonstrating how to use the Arduino Bridge with P5.js and Arduino.
+This folder contains examples demonstrating how to use the Serial Bridge with P5.js and Arduino.
 
 ## 📁 Contents
 
@@ -8,13 +8,13 @@ This folder contains examples demonstrating how to use the Arduino Bridge with P
 A simple P5.js sketch that visualizes data from an Arduino in real-time.
 
 **Features:**
-- Connects to Arduino Bridge
+- Connects to Serial Bridge
 - Receives data from `arduino_1`
 - Displays data as a bar chart and line graph
 - Shows connection status indicator
 
 **How to use:**
-1. Start the Arduino Bridge desktop app
+1. Start the Serial Bridge desktop app
 2. Add a connection with ID `arduino_1`
 3. Upload one of the Arduino sketches to your board
 4. Open `examples/basic-p5js/index.html` in your browser
@@ -43,7 +43,7 @@ Example Arduino sketches compatible with the Bridge.
 ```
 
 ### Step 2: Bridge Setup
-1. Open Arduino Bridge app
+1. Open Serial Bridge app
 2. Click "New Connection"
 3. Set ID to `arduino_1`
 4. Select your Arduino's port

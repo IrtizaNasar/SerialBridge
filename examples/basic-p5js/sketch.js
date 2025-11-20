@@ -1,4 +1,4 @@
-// Arduino Bridge Example - P5.js Sketch
+// Serial Bridge Example - P5.js Sketch
 // This sketch visualizes data coming from Arduino via the Bridge
 
 let bridge;
@@ -11,7 +11,7 @@ function setup() {
     let canvas = createCanvas(800, 400);
     canvas.parent('canvas-container');
 
-    // Create a new Arduino Bridge connection
+    // Create a new Serial Bridge connection
     bridge = new ArduinoBridge('http://localhost:3000');
 
     // Listen for data from arduino_1
@@ -158,7 +158,7 @@ function drawWaitingMessage() {
     textSize(16);
     text('Waiting for Arduino data...', width / 2, height / 2 - 20);
     textSize(12);
-    text('Make sure Arduino Bridge is running and arduino_1 is connected', width / 2, height / 2 + 10);
+    text('Make sure Serial Bridge is running and arduino_1 is connected', width / 2, height / 2 + 10);
 }
 
 // Optional: Send data to Arduino on key press
