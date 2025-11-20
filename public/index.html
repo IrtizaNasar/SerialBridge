@@ -108,7 +108,7 @@
                 </p>
 
                 <pre class="code-snippet-stripe"><code>&lt;script src="http://localhost:3000/socket.io/socket.io.js"&gt;&lt;/script&gt;
-&lt;script src="http://localhost:3000/arduino-bridge.js"&gt;&lt;/script&gt;</code></pre>
+&lt;script src="http://localhost:3000/serial-bridge.js"&gt;&lt;/script&gt;</code></pre>
 
                 <h3>Use in P5.js</h3>
                 <p>
@@ -120,7 +120,7 @@
 function setup() {
     createCanvas(400, 400);
     
-    bridge = new ArduinoBridge();
+    bridge = new SerialBridge();
     
     bridge.onData('arduino_1', (data) => {
         console.log('Received:', data);
@@ -140,7 +140,7 @@ function setup() {
     </div>
 
     <!-- Serial Bridge Client Library -->
-    <script src="serial-bridge.js"></script>
+    <script src="client.js"></script>
 </body>
 
 </html>
