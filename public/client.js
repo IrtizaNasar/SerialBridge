@@ -262,8 +262,14 @@
                     const option = document.createElement('option');
                     option.value = port.path;
                     // On Windows, manufacturer might be missing or different.
-                    // Show Path (COMx) + Manufacturer if available
-                    const label = port.path + (port.manufacturer ? ' - ' + port.manufacturer : '');
+                    // Show Path (COMx) + Manufacturer + VID/PID if available
+                    let label = port.path;
+                    if (port.manufacturer) {
+                        label += ' - ' + port.manufacturer;
+                    }
+                    if (port.vendorId || port.productId) {
+                        label += ` (${port.vendorId || '?'}:${port.productId || '?'})`;
+                    }
                     option.textContent = label;
                     portSelect.appendChild(option);
                 });

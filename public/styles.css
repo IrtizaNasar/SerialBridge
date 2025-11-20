@@ -572,6 +572,12 @@ body {
     background: var(--bg-glass-hover);
 }
 
+.form-select option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 8px;
+}
+
 .button-row {
     display: flex;
     gap: 12px;
