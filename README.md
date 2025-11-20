@@ -63,6 +63,47 @@ While the **Web Serial API** is a great tool, **Serial Bridge** offers several d
 
 Download the latest release for your platform from the [Releases page](https://github.com/IrtizaNasar/SerialBridge/releases).
 
+### macOS Setup
+
+Since this app is not signed by Apple, you may see a warning that it "is damaged and can't be opened." To fix this:
+
+1. Move the app to your **Applications** folder.
+2. Open Terminal and run:
+   ```bash
+   xattr -cr /Applications/Serial\ Bridge.app
+   ```
+3. You can now open the app normally.
+
+### Linux Setup
+
+If you are using the `.AppImage` on Linux (especially Ubuntu 22.04+), you may need to perform a few one-time setup steps.
+
+**1. Make Executable**
+```bash
+chmod a+x Serial-Bridge-*.AppImage
+```
+
+**2. Install libfuse2 (Ubuntu 22.04+)**
+AppImages require FUSE to run.
+```bash
+sudo apt install libfuse2
+```
+
+**3. Serial Port Permissions**
+To access serial ports without `sudo`, add your user to the `dialout` group (recommended permanent fix):
+```bash
+sudo usermod -a -G dialout $USER
+```
+*Log out and log back in for this to take effect.*
+
+**4. Sandbox Issues (Ubuntu 24.04+)**
+If you see a "SUID sandbox helper binary" error, you can either:
+- Run with `--no-sandbox`: `./Serial-Bridge-*.AppImage --no-sandbox`
+- OR enable unprivileged user namespaces (recommended fix):
+  ```bash
+  sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+  ```
+
 ### Build from Source - For Advanced Users
 
 ```bash
