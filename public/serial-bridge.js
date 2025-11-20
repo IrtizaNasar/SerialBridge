@@ -4,16 +4,16 @@
  * A simple client library for connecting P5.js sketches to the Serial Bridge.
  *
  * Usage:
- *   const bridge = new ArduinoBridge();
+ *   const bridge = new SerialBridge();
  *   // or specify a custom URL/port:
- *   const bridge = new ArduinoBridge('http://localhost:3001');
+ *   const bridge = new SerialBridge('http://localhost:3001');
  *
  *   bridge.onData('arduino_1', (data) => {
  *     console.log('Received:', data);
  *   });
  */
 
-class ArduinoBridge {
+class SerialBridge {
     constructor(serverUrl) {
         // Auto-detect server URL if not provided
         if (!serverUrl) {
@@ -46,7 +46,7 @@ class ArduinoBridge {
      */
     connect() {
         if (typeof io === 'undefined') {
-            console.error('Socket.IO not loaded. Please include the Socket.IO client library before arduino-bridge.js');
+            console.error('Socket.IO not loaded. Please include the Socket.IO client library before serial-bridge.js');
             return;
         }
 
@@ -222,5 +222,5 @@ class ArduinoBridge {
 
 // Export for use in different environments
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ArduinoBridge;
+    module.exports = SerialBridge;
 }

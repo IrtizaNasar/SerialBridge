@@ -1,7 +1,7 @@
 /*
-  Interactive LED Example for Arduino Bridge
+  Interactive LED Example for Serial Bridge
 
-  This sketch listens for commands from the Arduino Bridge and controls
+  This sketch listens for commands from the Serial Bridge and controls
   an LED accordingly. It also sends sensor data back.
 
   Commands:
@@ -29,13 +29,13 @@ void setup() {
   // Initialize LED pin
   pinMode(LED_PIN, OUTPUT);
 
-  Serial.println("Arduino Bridge - Interactive LED");
+  Serial.println("Serial Bridge - Interactive LED");
   Serial.println("Commands: TOGGLE, VALUE:X (0-9)");
   Serial.println("Ready!");
 }
 
 void loop() {
-  // Check for incoming commands from Arduino Bridge
+  // Check for incoming commands from Serial Bridge
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
     command.trim();

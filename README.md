@@ -118,8 +118,8 @@ Include the client library in your HTML:
 <head>
   <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
   <script src="http://localhost:3000/socket.io/socket.io.js"></script>
-  <!-- LOADED FROM THE SERIAL BRIDGEAPP: You do NOT need this file in your project folder -->
-  <script src="http://localhost:3000/arduino-bridge.js"></script>
+  <!-- LOADED FROM THE SERIAL BRIDGEAPP: You do NOT need this file    <!-- Serial Bridge Client Library -->
+    <script src="http://localhost:3000/serial-bridge.js"></script>
   <script src="sketch.js"></script>
 </head>
 <body></body>
@@ -127,7 +127,7 @@ Include the client library in your HTML:
 ```
 
 > [!IMPORTANT]
-> The `arduino-bridge.js` script is served **dynamically** by the Serial Bridge application. **You do NOT need to download or copy this file.** Just ensure the app is running and the port matches.
+> The `serial-bridge.js` script is served **dynamically** by the Serial Bridge application. **You do NOT need to download or copy this file.** Just ensure the app is running and the port matches.
 
 **Note:** The Socket.IO URL should match your bridge server port (default: 3000). The active server URL is displayed in the Serial Bridge application sidebar under "Server URL".
 
@@ -143,11 +143,9 @@ let sensorValue = 0;
 function setup() {
   createCanvas(400, 400);
 
-  // Create bridge connection (auto-detects URL from socket.io script)
-  bridge = new ArduinoBridge();
-
-  // Or specify a custom port if needed:
-  // bridge = new ArduinoBridge('http://localhost:3001');
+  // Connect to Serial Bridge
+    bridge = new SerialBridge(); // Auto-detects URL from socket.io script
+    // OR: bridge = new SerialBridge('http://localhost:3000');
 
   // Listen for data from arduino_1
   bridge.onData('arduino_1', (data) => {
@@ -174,16 +172,16 @@ function draw() {
 
 For most users, you'll only need these methods. The Serial Bridge desktop app handles all connection management through its UI.
 
-#### ArduinoBridge Constructor
+#### SerialBridge Constructor
 
 Create a new bridge connection:
 
 ```javascript
-const bridge = new ArduinoBridge();
+const bridge = new SerialBridge(serverUrl);
 // URL is auto-detected from Socket.IO script tag
 
 // Or specify a custom URL if needed:
-const bridge = new ArduinoBridge('http://localhost:3001');
+const bridge = new SerialBridge('http://localhost:3001');
 ```
 
 **Parameters:**
@@ -373,7 +371,7 @@ let serverPort = 3000; // Change this to your preferred starting port
 - Verify Serial Bridge application is running
 - Check the sidebar in the Bridge app for the server URL (e.g., "http://localhost:3001")
 - Update the Socket.IO script URL to match: `<script src="http://localhost:3001/socket.io/socket.io.js"></script>`
-- The `ArduinoBridge()` constructor will auto-detect the URL from the Socket.IO script
+- The `SerialBridge()` constructor will auto-detect the URL from the Socket.IO script
 - Include socket.io client library before arduino-bridge.js
 - Check browser console for error messages
 

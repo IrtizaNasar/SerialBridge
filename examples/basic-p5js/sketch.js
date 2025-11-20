@@ -12,7 +12,7 @@ function setup() {
     canvas.parent('canvas-container');
 
     // Create a new Serial Bridge connection
-    bridge = new ArduinoBridge('http://localhost:3000');
+    bridge = new SerialBridge('http://localhost:3000');
 
     // Listen for data from arduino_1
     bridge.onData('arduino_1', (data) => {

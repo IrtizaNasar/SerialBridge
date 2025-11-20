@@ -1,8 +1,8 @@
 /*
-  Basic Arduino Sensor Example for Arduino Bridge
+  Basic Arduino Sensor Example for Serial Bridge
 
   This sketch reads an analog sensor on pin A0 and sends the value
-  to the serial port. The Arduino Bridge will capture this data and
+  to the serial port. The Serial Bridge will capture this data and
   make it available to your P5.js sketches.
 
   Hardware:
@@ -25,7 +25,7 @@ void setup() {
     ;
   }
 
-  Serial.println("Arduino Bridge - Basic Sensor");
+  Serial.println("Serial Bridge - Basic Sensor");
   Serial.println("Ready to send data!");
 }
 
@@ -33,7 +33,7 @@ void loop() {
   // Read the analog sensor
   int sensorValue = analogRead(SENSOR_PIN);
 
-  // Send the value to serial (Arduino Bridge will capture this)
+  // Send the value to serial (Serial Bridge will capture this)
   Serial.println(sensorValue);
 
   // Wait before next reading

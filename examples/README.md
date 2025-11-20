@@ -53,12 +53,12 @@ Example Arduino sketches compatible with the Bridge.
 ```html
 <!-- Include these in your HTML head -->
 <script src="http://localhost:3000/socket.io/socket.io.js"></script>
-<script src="http://localhost:3000/arduino-bridge.js"></script>
+<script src="http://localhost:3000/serial-bridge.js"></script>
 ```
 
 ```javascript
 // In your sketch.js
-let bridge = new ArduinoBridge(); // Auto-detects URL
+let bridge = new SerialBridge(); // Auto-detects URL
 
 bridge.onData('arduino_1', (data) => {
   console.log('Received:', data);
@@ -68,12 +68,12 @@ bridge.onData('arduino_1', (data) => {
 
 ## 📚 Client Library Reference
 
-The `arduino-bridge.js` library provides a simple API for communication:
+The `serial-bridge.js` library provides a simple API for communication:
 
 ### Basic Usage
 ```javascript
 // Create connection
-const bridge = new ArduinoBridge();
+const bridge = new SerialBridge();
 
 // Listen for data
 bridge.onData('arduino_1', (data) => {
