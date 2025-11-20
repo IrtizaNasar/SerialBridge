@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const express = require('express');
 const { SerialPort } = require('serialport');
@@ -11,6 +11,7 @@ let server;
 let io;
 let connections = new Map();
 let serverPort = 3000;
+let bluetoothCallback = null;
 
 function createServer() {
     const expressApp = express();
@@ -152,18 +153,36 @@ function createServer() {
     });
 
     io.on('connection', (socket) => {
-        console.log('[CLIENT] Connected to bridge');
+        console.log('Client connected');
 
+        // Send current status to new client
         connections.forEach((connection, id) => {
             socket.emit('connection-status', {
-                id,
-                status: connection.port && connection.port.isOpen ? 'connected' : 'disconnected',
-                port: connection.port ? connection.port.path : null
+                id: id,
+                status: 'connected',
+                port: connection.portPath
             });
         });
 
         socket.on('disconnect', () => {
-            console.log('[CLIENT] Disconnected from bridge');
+            console.log('Client disconnected');
+        });
+
+        // Relay BLE data from Electron renderer to P5.js clients
+        socket.on('ble-data', (data) => {
+            // Broadcast to all other clients (P5.js sketches)
+            // We re-emit it as 'serial-data' so P5 sketches don't need special code
+            // They will see it as coming from a device named "BLE_DeviceName"
+            io.emit('serial-data', {
+                id: data.device, // Use device name as ID
+                data: data.data
+            });
+        });
+
+        // Relay BLE connection status from Electron renderer to P5.js clients
+        socket.on('connection-status', (statusData) => {
+            // Broadcast status to all clients
+            io.emit('connection-status', statusData);
         });
     });
 
@@ -197,7 +216,8 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            webSecurity: true
+            webSecurity: true,
+            preload: path.join(__dirname, 'preload.js')
         },
         title: 'Serial Bridge',
         titleBarStyle: 'hiddenInset',
@@ -214,6 +234,37 @@ function createWindow() {
             return { action: 'deny' };
         }
         return { action: 'allow' };
+    });
+
+    // Handle Bluetooth device selection
+    mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
+        event.preventDefault();
+        console.log('Main: select-bluetooth-device triggered. Devices:', deviceList.length);
+        console.log('Main: bluetoothCallback already exists?', !!bluetoothCallback);
+
+        // Just replace the callback - don't call the old one as it causes a loop
+        bluetoothCallback = callback;
+
+        // Send device list to renderer
+        mainWindow.webContents.send('bluetooth-device-list', deviceList);
+    });
+
+    // Handle device selection from renderer
+    ipcMain.on('bluetooth-device-selected', (event, deviceId) => {
+        console.log('Main: Device selected:', deviceId);
+        if (bluetoothCallback) {
+            bluetoothCallback(deviceId);
+            bluetoothCallback = null;
+        }
+    });
+
+    // Handle cancellation from renderer
+    ipcMain.on('bluetooth-device-cancelled', () => {
+        console.log('Main: Device selection cancelled');
+        if (bluetoothCallback) {
+            bluetoothCallback(''); // Empty string cancels the selection
+            bluetoothCallback = null;
+        }
     });
 
     mainWindow.loadURL(`http://localhost:${serverPort}`);

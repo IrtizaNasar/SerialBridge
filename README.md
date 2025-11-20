@@ -354,6 +354,20 @@ The `examples/` directory contains complete working examples:
   - `basic-sensor.ino`: Read and send analog sensor data
   - `interactive-led.ino`: Bidirectional communication with LED control
 
+### Bluetooth Setup
+
+**1. Classic Bluetooth (HC-05/HC-06)**
+- Use for Arduino Uno R3, Mega, etc.
+- Connects via standard Serial Port (COM port).
+- See [Bluetooth Guide](examples/BLUETOOTH_GUIDE.md).
+
+**2. Bluetooth Low Energy (BLE) - Arduino Uno R4 WiFi**
+- The Uno R4 WiFi uses BLE, which does not create a COM port.
+- **Serial Bridge now supports BLE directly!**
+- Upload the example sketch: `examples/arduino-sketches/ble-uno-r4.ino`
+- Click the **"Connect BLE"** button in the app.
+- Select your Arduino ("Uno R4 Bridge") from the list.
+
 See [examples/README.md](examples/README.md) for detailed documentation.
 
 ## Project Structure
