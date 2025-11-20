@@ -89,6 +89,11 @@ npm run build
 3. Select your Arduino's port from the dropdown
 4. Click "Connect"
 
+> [!TIP]
+> **Identifying Your Board (Windows)**: On Windows, boards often appear as generic "USB Serial Device". The port list shows the Vendor ID (VID) and Product ID (PID) to help you identify them (e.g., `2341:0043`).
+> - `2341` is the code for **Arduino SA**.
+> - `0043` is the code for an **Arduino Uno**.
+
 ### 2. Upload Arduino Sketch
 
 Upload this basic sketch to your Arduino:
