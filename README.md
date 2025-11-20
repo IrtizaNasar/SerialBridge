@@ -34,6 +34,10 @@
 - **Cross-Platform**: Works on macOS, Windows, and Linux
 - **WebSocket Communication**: Low-latency bidirectional communication
 - **Editable Connection IDs**: Customize connection identifiers for better project organization
+  
+
+  ![Serial-Bridge](https://github.com/user-attachments/assets/371df7c8-a4e4-421f-90e5-00276cf921d6)
+
 
 ## Installation
 
