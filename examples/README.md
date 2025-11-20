@@ -106,7 +106,7 @@ await bridge.connectArduino('arduino_1', '/dev/cu.usbmodem14101', 9600);
 await bridge.disconnectArduino('arduino_1');
 ```
 
-## 🎨 Creating Custom Examples
+## 🐻 Creating Custom Examples
 
 1. Duplicate the `basic-p5js` folder
 2. Modify `sketch.js` to implement your logic
