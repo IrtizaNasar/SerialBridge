@@ -10,6 +10,7 @@
 ## Table of Contents
 
 - [Features](#features)
+- [Why Serial Bridge?](#why-serial-bridge)
 - [Installation](#installation)
   - [Download Pre-built Application](#download-pre-built-application)
   - [macOS Setup](#macos-setup)
