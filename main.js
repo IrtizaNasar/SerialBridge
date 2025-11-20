@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 const express = require('express');
 const { SerialPort } = require('serialport');
@@ -205,6 +205,15 @@ function createWindow() {
         minWidth: 800,
         minHeight: 600,
         icon: path.join(__dirname, 'public/logo.png')
+    });
+
+    // Handle external links
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http:') || url.startsWith('https:')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
     });
 
     mainWindow.loadURL(`http://localhost:${serverPort}`);
