@@ -39,6 +39,24 @@
   ![Serial-Bridge](https://github.com/user-attachments/assets/371df7c8-a4e4-421f-90e5-00276cf921d6)
 
 
+
+## Why Serial Bridge?
+
+While the **Web Serial API** is a great tool, **Serial Bridge** offers several distinct advantages for creative coding and installation work:
+
+| Feature | Web Serial API | Serial Bridge |
+|---------|---------------|---------------|
+| **Browser Support** | Chrome/Edge only | **All Browsers** (Chrome, Firefox, Safari) |
+| **Connection Persistence** | Disconnects on page refresh | **Stays Connected** (Refresh page without losing connection) |
+| **User Experience** | Permission prompt on every visit | **Connect Once**, use everywhere |
+| **Multiple Devices** | Complex to manage in code | **Easy** (Manage via UI, access by ID) |
+| **Security Context** | Requires HTTPS | Works on **localhost** & HTTPS |
+
+**Key Advantage:** With Serial Bridge, your P5.js sketch doesn't need complex connection logic. You just listen for data. This makes it perfect for:
+- Classrooms and workshops (easier for beginners)
+- Permanent installations (more robust reconnection)
+- Rapid prototyping (refresh your sketch instantly without reconnecting hardware)
+
 ## Installation
 
 ### Download Pre-built Application
