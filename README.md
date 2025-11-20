@@ -143,6 +143,8 @@ function draw() {
   text(`Value: ${sensorValue}`, 10, 20);
 }
 ```
+![Screen Recording 2025-11-20 at 00 35 31](https://github.com/user-attachments/assets/963fad9d-8d0d-466d-8596-6bce072cb072)
+
 
 ## API Reference
 
