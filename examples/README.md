@@ -3,9 +3,76 @@
 This folder contains examples demonstrating how to use the Serial Bridge with P5.js and Arduino.
 
 ## 📁 Contents
+### `/p5js-sketches/`
 
-### `/basic-p5js/`
-A simple P5.js sketch that visualizes data from an Arduino in real-time.
+**How to use:**
+1. Start the Serial Bridge desktop app
+2. Add a connection with ID `arduino_1`
+3. Upload one of the Arduino sketches to your board
+4. Open `examples/'your p5js example folder'/index.html` in your browser
+5. Observe the real-time visualization
+
+#### `/basic-input-p5js/`
+A simple P5.js sketch that visualizes data from an Arduino in real-time as a circle on a canvas.
+
+**Features:**
+- Connects to Serial Bridge
+- Receives data from `arduino_1`
+- Displays data as a circle
+
+
+#### `/basic-output-p5js/`
+A simple P5.js sketch that sends mouseX data to an Arduino in real-time to control the brightness of an LED.
+
+**Features:**
+- Connects to Serial Bridge
+- Send data to `arduino_1`
+- Uses mouseX to control LED brightness
+
+#### `/multi-input-easy-p5js/`
+A simple P5.js sketch that visualizes two sets of values from an Arduino in real-time.
+
+**Features:**
+- Connects to Serial Bridge
+- Receives data from `arduino_1`
+- Splits the data into two values
+- Displays one set of data as a circle
+- Displays the second set of data as a square
+
+#### `/multi-input-array-p5js/`
+A P5.js sketch that visualizes an array values from an Arduino in real-time.
+
+**Features:**
+- Connects to Serial Bridge
+- Receives data from `arduino_1`
+- Splits the data into multiple values
+- Displays one set of data as a circle
+- Displays the second set of data as a square
+- Displays the third set of data as a triangle
+- Demonstrates how to scale the examples for as many inputs as required.
+
+#### `/store-input-p5js/`
+A simple P5.js sketch that visualizes data from an Arduino in real-time as a circle on a canvas. Stores this value in a simple JSON object.
+
+**Features:**
+- Connects to Serial Bridge
+- Receives data from `arduino_1`
+- Displays data as a circle
+- Stores data into a JSON object
+- Svaes JSON file on keypress
+
+#### `/store-multi-input-p5js/`
+A P5.js sketch that visualizes multiple data inputs from an Arduino in real-time. Stores these values in a JSON array as multiple objects.
+
+**Features:**
+- Connects to Serial Bridge
+- Receives data from `arduino_1`
+- Displays data as a circle
+- Stores data into a JSON array as multiple objects
+- Saves JSON file on keypress
+
+#### `/bidirectional-interactive-p5js/`
+A simple P5.js sketch that visualizes data from an Arduino in real-time and sends data back to control an LED.
 
 **Features:**
 - Connects to Serial Bridge
@@ -13,12 +80,7 @@ A simple P5.js sketch that visualizes data from an Arduino in real-time.
 - Displays data as a bar chart and line graph
 - Shows connection status indicator
 
-**How to use:**
-1. Start the Serial Bridge desktop app
-2. Add a connection with ID `arduino_1`
-3. Upload one of the Arduino sketches to your board
-4. Open `examples/basic-p5js/index.html` in your browser
-5. Observe the real-time visualization
+
 
 ### `/arduino-sketches/`
 Example Arduino sketches compatible with the Bridge.
@@ -28,7 +90,29 @@ Example Arduino sketches compatible with the Bridge.
 - Ideal for getting started
 - Compatible with potentiometers, light sensors, etc.
 
-#### `interactive-led.ino`
+#### `basic-send.ino`
+- Reads an analog sensor (A0) and sends values to serial
+- Ideal for getting started
+- Compatible with potentiometers, light sensors, etc.
+
+#### `basic-recieve.ino`
+- Recieves data from a p5js sketch over serial
+- Uses the data to control analogWrite() values.
+- Ideal for getting started
+- Compatible with outputs such as LEDs, DC Motors etc
+
+#### `send-multi-data.ino`
+- Reads two analog sensors (A0), (A1) and sends values to serial
+- Demonstrates comma separated serial data
+- Compatible with potentiometers, light sensors, etc.
+
+#### `send-multi-array.ino`
+- Reads three analog sensors (A0), (A1), (A2) and sends values to serial
+- Demonstrates how to use comma separated serial data
+- Uses an array of sensorPins to demonstrate how to scale the example to as many inputs as you wish.
+- Compatible with potentiometers, light sensors, etc.
+
+#### `bidirectional-interactive.ino`
 - Demonstrates bidirectional communication
 - Sends sensor data AND receives commands
 - Controls LED brightness based on keyboard input from P5.js
