@@ -280,10 +280,19 @@ bridge.onStatus('arduino_1', (status, port) => {
 
 #### `send(arduinoId, data)`
 
-Send data to a connected Arduino.
+Send data from your P5.js sketch to a connected device (Arduino/microcontroller).
 
 ```javascript
-await bridge.send('arduino_1', 'TOGGLE_LED');
+// Send a command
+await bridge.send('device_1', 'LED_ON');
+
+// Send a value
+await bridge.send('device_1', '128');
+
+// Send data on button click
+function mousePressed() {
+  bridge.send('device_1', 'TOGGLE');
+}
 ```
 
 **Parameters:**
@@ -291,6 +300,11 @@ await bridge.send('arduino_1', 'TOGGLE_LED');
 - `data` (string): Data to send
 
 **Returns:** Promise
+
+> [!IMPORTANT]
+> **Two-Way Communication**: Serial Bridge supports bidirectional communication. Your P5.js sketch can both **receive** sensor data (`onData()`) and **send** commands to Arduino (`send()`). This lets you control LEDs, motors, or adjust Arduino behavior from your web interface.
+> 
+> See `examples/arduino-sketches/interactive-led.ino` for a complete example of receiving commands on Arduino.
 
 #### Wildcard Listeners
 
@@ -418,10 +432,37 @@ Sessions are saved as human-readable JSON files:
 
 The `examples/` directory contains complete working examples:
 
-- **basic-p5js**: Simple data visualization with bar chart and line graph
-- **arduino-sketches**: Example Arduino sketches
-  - `basic-sensor.ino`: Read and send analog sensor data
-  - `interactive-led.ino`: Bidirectional communication with LED control
+### P5.js Examples
+- **basic-p5js/sketch.js**: Simple data visualization with bar chart and line graph (receive data)
+- **basic-p5js/sketch-ble-control.js**: Interactive LED control via Bluetooth (send & receive data)
+
+### Arduino Sketches
+
+**USB Serial (One-way - Send Only):**
+- **basic-sensor.ino**: Read and send analog sensor data
+  - For Arduino Uno, Mega, Nano (classic), etc.
+  - Sends sensor values to P5.js
+
+**USB Serial (Two-way - Send & Receive):**
+- **interactive-led.ino**: Bidirectional communication with LED control
+  - Sends sensor data AND receives commands from P5.js
+  - Control LED brightness with keyboard input
+  - Example commands: `TOGGLE`, `VALUE:0-9`
+
+**Bluetooth Low Energy (BLE):**
+- **ble-uno-r4.ino**: Arduino Uno R4 WiFi BLE example
+- **ble-nano33.ino**: Arduino Nano 33 BLE example  
+- **ble-esp32.ino**: ESP32 BLE example
+- All BLE examples support **bidirectional communication**
+  - Send sensor data to P5.js
+  - Receive commands from P5.js (LED control, parameters, etc.)
+
+> [!TIP]
+> **Want to control your Arduino from P5.js?** Use the bidirectional examples:
+> - USB: `interactive-led.ino`
+> - Bluetooth: Any of the `ble-*.ino` sketches
+>
+> These show how to both send sensor data AND receive commands from your P5.js sketch.
 
 ### Bluetooth Setup
 

@@ -112,21 +112,38 @@
     // These functions handle Bluetooth Low Energy device scanning and connection
     // BLE is used for devices like Arduino Uno R4 WiFi that don't create COM ports
 
+    // Track last scan time to prevent rapid re-scanning
+    let lastScanTime = 0;
+    const SCAN_COOLDOWN = 1000; // 1 second between scans
+
     // Start scanning for this card
     window.scanBLE = async function (id) {
         console.log('Starting BLE scan for card:', id);
+
+        // Prevent rapid re-scanning which can cause Bluetooth API to hang
+        const now = Date.now();
+        if (now - lastScanTime < SCAN_COOLDOWN) {
+            console.log('Scan cooldown active, please wait...');
+            return;
+        }
+        lastScanTime = now;
 
         // Reset any previous scanning state
         if (scanningConnectionId && scanningConnectionId !== id) {
             console.warn('Another card was scanning, cancelling it first');
             if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+            // Wait a bit for cancellation to process
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
 
         scanningConnectionId = id;
         const scanBtn = document.getElementById('scan_' + id);
         const select = document.getElementById('ble_device_' + id);
 
-        if (scanBtn) scanBtn.textContent = 'Scanning...';
+        if (scanBtn) {
+            scanBtn.textContent = 'Scanning...';
+            scanBtn.disabled = true; // Disable button during scan
+        }
         if (select) {
             select.innerHTML = '<option>Scanning...</option>';
             select.disabled = true;
@@ -170,15 +187,31 @@
         } finally {
             console.log('Scan complete, resetting scanningConnectionId');
             scanningConnectionId = null;
+            if (scanBtn) scanBtn.disabled = false; // Re-enable scan button
         }
     };
 
     // Update the dropdown with found devices
+    // Only updates if the device list has actually changed to prevent interrupting user selection
     function updateBLEDeviceList(id, deviceList) {
         const select = document.getElementById('ble_device_' + id);
         const connectBtn = document.getElementById('connect_' + id);
 
         if (!select) return;
+
+        // Check if the list has changed by comparing device IDs
+        const currentOptions = Array.from(select.options)
+            .filter(opt => opt.value !== '') // Exclude placeholder
+            .map(opt => opt.value);
+
+        const newDeviceIds = deviceList.map(d => d.deviceId);
+
+        // If the lists are the same, don't update (prevents interrupting user selection)
+        if (currentOptions.length === newDeviceIds.length &&
+            currentOptions.every(id => newDeviceIds.includes(id))) {
+            console.log('Device list unchanged, skipping update');
+            return;
+        }
 
         // Preserve current selection
         const currentSelection = select.value;
@@ -200,9 +233,17 @@
 
             let selectionFound = false;
             deviceList.forEach(device => {
+                // Debug: Log what we're receiving
+                console.log('Client: Processing device:', device);
+
                 const option = document.createElement('option');
                 option.value = device.deviceId;
-                option.text = device.deviceName || `Unknown Device (${device.deviceId})`;
+
+                // Show MAC address to help distinguish devices with same name
+                // Extract last 5 chars of MAC for brevity (e.g., "20:BF")
+                const macSuffix = device.deviceId.slice(-5);
+                option.text = `${device.deviceName} (${macSuffix})`;
+
                 select.add(option);
 
                 if (device.deviceId === currentSelection) {
@@ -213,15 +254,15 @@
             // Restore selection if it still exists
             if (selectionFound) {
                 select.value = currentSelection;
+                if (connectBtn) connectBtn.disabled = false;
+            } else {
+                if (connectBtn) connectBtn.disabled = true;
             }
 
             // Enable connect button if user selects something
             select.onchange = () => {
                 if (connectBtn) connectBtn.disabled = select.value === "";
             };
-
-            // Ensure button state matches restored selection
-            if (connectBtn) connectBtn.disabled = select.value === "";
         }
 
         const scanBtn = document.getElementById('scan_' + id);

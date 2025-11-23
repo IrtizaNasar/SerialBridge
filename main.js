@@ -293,14 +293,23 @@ function createWindow() {
         }
         return { action: 'allow' };
     });
-
     // Handle Bluetooth device selection
     mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
         event.preventDefault();
         console.log('Main: select-bluetooth-device triggered. Devices:', deviceList.length);
-        console.log('Main: bluetoothCallback already exists?', !!bluetoothCallback);
 
-        // Just replace the callback - don't call the old one as it causes a loop
+        // Debug: Log device properties to see what's available
+        deviceList.forEach((device, index) => {
+            console.log(`Device ${index}:`, {
+                deviceName: device.deviceName,
+                deviceId: device.deviceId,
+                allProperties: Object.keys(device)
+            });
+        });
+
+        // Update the callback reference
+        // We do NOT cancel the previous one here because this event fires multiple times
+        // for the SAME scan request as new devices are found.
         bluetoothCallback = callback;
 
         // Send device list to renderer
