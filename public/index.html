@@ -32,32 +32,70 @@
             <div class="sidebar-content">
                 <div class="nav-section">
                     <div class="nav-title">Workspace</div>
-                    <a href="#" class="nav-item active">
-                        <div class="nav-icon">●</div>
+                    <a href="#" class="nav-item active"
+                        onclick="window.toggleWorkspaceCollapse(); window.filterConnections('all'); return false;">
+                        <svg class="nav-icon-chevron rotated" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
                         All Connections
                     </a>
+                    <div id="workspace-subcategories" class="collapsed">
+                        <a href="#" class="nav-item nav-item-sub"
+                            onclick="window.filterConnections('serial'); return false;">
+                            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 2v20M7 7l5-5 5 5M7 17l5 5 5-5"></path>
+                            </svg>
+                            USB
+                            <span class="connection-count" id="serial-count">0</span>
+                        </a>
+                        <a href="#" class="nav-item nav-item-sub"
+                            onclick="window.filterConnections('ble'); return false;">
+                            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M6.5 6.5l11 11m-11 0l11-11M12 2v20m0-20l6 6m-6-6L6 8m6 14l6-6m-6 6l-6-6">
+                                </path>
+                            </svg>
+                            Bluetooth
+                            <span class="connection-count" id="ble-count">0</span>
+                        </a>
+                    </div>
                 </div>
 
                 <div class="nav-section">
                     <div class="nav-title">Actions</div>
-                    <div class="nav-item" onclick="window.refreshAllPorts()">
-                        <div class="nav-icon">↻</div>
-                        Refresh Ports
+                    <div class="nav-item" onclick="window.saveSession()">
+                        <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        Save Session
                     </div>
-                    <div class="nav-item" onclick="window.addConnection()">
-                        <div class="nav-icon">+</div>
-                        Add Connection
-                    </div>
-                    <div class="nav-item" id="connect-ble-btn">
-                        <div class="nav-icon">⚡</div>
-                        Connect BLE
+                    <div class="nav-item" onclick="window.loadSession()">
+                        <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        Load Session
                     </div>
                 </div>
 
                 <div class="nav-section">
                     <div class="nav-title">Info</div>
                     <div class="nav-item" onclick="window.showUsageInfo()">
-                        <div class="nav-icon">?</div>
+                        <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                            <path d="M12 17h.01"></path>
+                        </svg>
                         Usage Guide
                     </div>
                 </div>
@@ -65,14 +103,14 @@
         </aside>
 
         <main class="main-content">
-            <header class="main-header">
+            <header class="header">
                 <h1></h1>
                 <button class="btn btn-primary" onclick="window.addConnection()">
                     + New Connection
                 </button>
             </header>
 
-            <div class="main-body">
+            <div class="content-scroll-area">
                 <div class="connection-grid" id="connections">
                     <div class="empty-state" id="empty-state">
                         <h3>No connections configured</h3>

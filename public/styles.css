@@ -11,8 +11,8 @@
     --bg-glass: rgba(255, 255, 255, 0.01);
     --bg-glass-hover: rgba(255, 255, 255, 0.03);
     --bg-glass-active: rgba(255, 255, 255, 0.05);
-    --bg-card: rgba(255, 255, 255, 0.02);
-    --bg-card-hover: rgba(255, 255, 255, 0.04);
+    --bg-card: rgba(255, 255, 255, 0.035);
+    --bg-card-hover: rgba(255, 255, 255, 0.055);
 
     --border-primary: rgba(255, 255, 255, 0.04);
     --border-secondary: rgba(255, 255, 255, 0.08);
@@ -229,6 +229,57 @@ body {
     z-index: 1;
 }
 
+.sidebar-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-primary), transparent);
+    margin: 12px 0;
+    opacity: 0.5;
+}
+
+.nav-item-sub {
+    padding-left: 40px;
+    font-size: 13px;
+}
+
+.connection-count {
+    margin-left: auto;
+    background: var(--bg-glass-active);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.nav-icon-svg {
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.nav-icon-chevron {
+    width: 14px;
+    height: 14px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.nav-icon-chevron.rotated {
+    transform: rotate(-90deg);
+}
+
+#workspace-subcategories {
+    max-height: 200px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+#workspace-subcategories.collapsed {
+    max-height: 0;
+}
+
 .main-content {
     flex: 1;
     display: flex;
@@ -390,6 +441,15 @@ body {
 
 .card-title {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    flex: 1;
+    /* Push controls to the right */
+}
+
+.card-controls {
+    display: flex;
     align-items: center;
     gap: 12px;
 }
@@ -419,11 +479,13 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: 0;
+    padding-left: 8px;
+    /* Align with input padding */
 }
 
 .id-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     color: var(--text-tertiary);
     text-transform: uppercase;
@@ -431,36 +493,40 @@ body {
 }
 
 .connection-id-input {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
-    background: var(--bg-glass-active);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    padding: 6px 10px;
-    border-radius: 6px;
+    background: transparent;
+    backdrop-filter: none;
+    padding: 0;
+    border-radius: 0;
     font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-    border: 1px solid var(--border-primary);
+    border: none;
     font-weight: 500;
     transition: all 0.2s ease;
-    min-width: 140px;
+    min-width: auto;
+    width: auto;
     outline: none;
 }
 
 .connection-id-input:disabled {
     cursor: default;
     color: var(--text-muted);
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 .connection-id-input:not(:disabled) {
     background: var(--bg-glass-hover);
-    border-color: var(--accent-primary);
+    border-radius: 4px;
+    padding: 2px 4px;
     color: var(--text-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .connection-id-input:focus {
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .btn-edit-id {
@@ -798,8 +864,43 @@ body {
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 1001;
     overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* Connection Type Toggle */
+.connection-type-toggle {
+    display: flex;
+    background: var(--bg-glass-active);
+    padding: 4px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-primary);
+}
+
+.toggle-option {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.toggle-option:hover {
+    color: var(--text-primary);
+}
+
+.toggle-option.active {
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-primary);
+}
+
+
 
 .modal-header-bar {
     display: flex;
@@ -1002,4 +1103,133 @@ body {
         opacity: 1;
         transform: translateY(0) scale(1);
     }
+}
+
+.card-title-input {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    width: 200px;
+    transition: all 0.2s ease;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.card-title-input:hover {
+    background: var(--bg-glass-hover);
+    border-color: var(--border-primary);
+}
+
+.card-title-input:focus {
+    background: var(--bg-glass-active);
+    border-color: var(--accent-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+}
+
+.header {
+    padding: 24px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    z-index: 10;
+    position: relative;
+}
+
+.header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 40px;
+    right: 40px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+}
+
+.content-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 40px 40px;
+    /* Added top padding */
+    position: relative;
+}
+
+/* Drag and Drop Styles */
+.connection-card {
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.2s ease;
+    cursor: grab;
+    /* Ensure cursor indicates draggability */
+}
+
+.connection-card:active {
+    cursor: grabbing;
+}
+
+.connection-card.dragging {
+    opacity: 0.6;
+    transform: scale(0.98);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--accent-primary);
+    z-index: 10;
+    cursor: grabbing;
+}
+
+/* Header layout adjustment */
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+}
+
+/* Collapsible Card Styles */
+.btn-collapse {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.btn-collapse:hover {
+    color: var(--text-primary);
+    background: var(--bg-glass-hover);
+}
+
+.btn-collapse svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.2s ease;
+}
+
+.connection-card.collapsed .btn-collapse svg {
+    transform: rotate(-90deg);
+}
+
+.card-content {
+    transition: all 0.2s ease;
+}
+
+.connection-card.collapsed .card-content {
+    display: none;
 }

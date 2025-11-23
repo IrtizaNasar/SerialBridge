@@ -36,66 +36,58 @@
         } else {
             console.warn('IPC Renderer not available. BLE selection might fail.');
         }
+
+        // Drag and Drop Container Listeners
+        const connectionsDiv = document.getElementById('connections');
+        if (connectionsDiv) {
+            connectionsDiv.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(connectionsDiv, e.clientY);
+                const draggable = document.querySelector('.dragging');
+                if (draggable) {
+                    if (afterElement == null) {
+                        connectionsDiv.appendChild(draggable);
+                    } else {
+                        connectionsDiv.insertBefore(draggable, afterElement);
+                    }
+
+                    // Auto-scrolling logic
+                    const scrollArea = document.querySelector('.content-scroll-area');
+                    if (scrollArea) {
+                        const rect = scrollArea.getBoundingClientRect();
+                        const threshold = 100; // Distance from edge to start scrolling
+                        const speed = 10; // Scroll speed
+
+                        if (e.clientY < rect.top + threshold) {
+                            // Scroll up
+                            scrollArea.scrollTop -= speed;
+                        } else if (e.clientY > rect.bottom - threshold) {
+                            // Scroll down
+                            scrollArea.scrollTop += speed;
+                        }
+                    }
+                }
+            });
+        }
     });
 
+    // Helper to find the element to drop after
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.connection-card:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
     // Add a new BLE configuration card
-    window.addBLEConnection = function () {
-        const id = getNextAvailableId();
-        console.log('Creating BLE card with ID:', id);
 
-        // Reserve ID
-        connections[id] = {
-            status: 'configuring',
-            type: 'ble',
-            device: null
-        };
-
-        const container = document.getElementById('connections');
-        const emptyState = document.getElementById('empty-state');
-        if (emptyState) emptyState.style.display = 'none';
-
-        const displayNum = getDisplayNumber(id);
-        console.log('Display number for', id, 'is:', displayNum);
-
-        const div = document.createElement('div');
-        div.className = 'connection-card';
-        div.id = 'card_' + id;
-
-        div.innerHTML = `
-            <div class="card-header">
-                <div class="card-title">
-                    <h3>Arduino ${displayNum} (BLE)</h3>
-                    <div class="connection-id-group">
-                        <label class="id-label">ID:</label>
-                        <input type="text" class="connection-id-input" id="id_input_${id}" value="${id}" disabled>
-                        <button class="btn-edit-id" onclick="window.editConnectionId('${id}')" title="Edit Connection ID">Edit</button>
-                    </div>
-                </div>
-                <div class="status-badge status-disconnected" id="status_${id}">
-                    <div class="status-dot"></div>
-                    Configuring
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Bluetooth Device</label>
-                <select class="form-select" id="ble_device_${id}">
-                    <option value="">Click Scan to find devices...</option>
-                </select>
-            </div>
-
-            <div class="button-row">
-                <button class="btn" onclick="window.scanBLE('${id}')" id="scan_${id}">Scan</button>
-                <button class="btn btn-primary" onclick="window.finalizeBLEConnection('${id}')" id="connect_${id}" disabled>Connect</button>
-                <button class="btn btn-danger" onclick="window.removeBLE('${id}')">Remove</button>
-            </div>
-
-            <div class="data-preview" id="data_${id}">
-                <div class="data-line">Not connected</div>
-            </div>
-        `;
-        container.prepend(div);
-    };
 
     // Start scanning for this card
     window.scanBLE = async function (id) {
@@ -571,15 +563,15 @@
     // Get the next available ID using lowest-available logic
     function getNextAvailableId() {
         let num = 1;
-        while (connections.hasOwnProperty('arduino_' + num)) {
+        while (connections.hasOwnProperty('device_' + num)) {
             num++;
         }
-        return 'arduino_' + num;
+        return 'device_' + num;
     }
 
-    // Calculate the display number for the Arduino (e.g., "Arduino 1")
+    // Calculate the display number for the Device
     function getDisplayNumber(id) {
-        const match = id.match(/^arduino_(\d+)$/);
+        const match = id.match(/^device_(\d+)$/);
         return match ? match[1] : id;
     }
 
@@ -725,7 +717,14 @@
         console.log('Adding new connection...');
 
         const id = getNextAvailableId();
-        connections[id] = { status: 'disconnected', port: null };
+        const displayNum = getDisplayNumber(id);
+        // Default to serial, with a default name
+        connections[id] = {
+            status: 'disconnected',
+            type: 'serial',
+            port: null,
+            name: `Serial Device ${displayNum}`
+        };
 
         console.log('Created connection with ID:', id);
 
@@ -740,74 +739,197 @@
             return;
         }
 
-        const displayNum = getDisplayNumber(id);
         const connectionCard = document.createElement('div');
         connectionCard.className = 'connection-card';
         connectionCard.id = 'card_' + id;
+        connectionCard.setAttribute('draggable', 'true');
 
-        connectionCard.innerHTML =
-            '<div class="card-header">' +
-            '<div class="card-title">' +
-            '<h3>Arduino ' + displayNum + '</h3>' +
-            '<div class="connection-id-group">' +
-            '<label class="id-label">ID:</label>' +
-            '<input type="text" class="connection-id-input" id="id_input_' + id + '" value="' + id + '" disabled>' +
-            '<button class="btn-edit-id" onclick="window.editConnectionId(\'' + id + '\')" title="Edit Connection ID">Edit</button>' +
-            '</div>' +
-            '</div>' +
-            '<div class="status-badge status-disconnected" id="status_' + id + '">' +
-            '<div class="status-dot"></div>' +
-            'Disconnected' +
-            '</div>' +
-            '</div>' +
+        // Drag Events
+        connectionCard.addEventListener('dragstart', () => {
+            // Use setTimeout to ensure the drag image is created from the full opacity element
+            // before we apply the dragging class to dim it in the DOM
+            setTimeout(() => {
+                connectionCard.classList.add('dragging');
+            }, 0);
+        });
 
-            '<div class="form-group">' +
-            '<label class="form-label" for="port_' + id + '">Serial Port</label>' +
-            '<select class="form-select" id="port_' + id + '">' +
-            '<option value="">Select port...</option>' +
-            '</select>' +
-            '</div>' +
+        connectionCard.addEventListener('dragend', () => {
+            connectionCard.classList.remove('dragging');
+        });
 
-            '<div class="form-group">' +
-            '<label class="form-label" for="baud_' + id + '">Baud Rate</label>' +
-            '<select class="form-select" id="baud_' + id + '">' +
-            '<option value="300">300</option>' +
-            '<option value="1200">1200</option>' +
-            '<option value="2400">2400</option>' +
-            '<option value="4800">4800</option>' +
-            '<option value="9600" selected>9600</option>' +
-            '<option value="14400">14400</option>' +
-            '<option value="19200">19200</option>' +
-            '<option value="28800">28800</option>' +
-            '<option value="31250">31250</option>' +
-            '<option value="38400">38400</option>' +
-            '<option value="57600">57600</option>' +
-            '<option value="74880">74880</option>' +
-            '<option value="115200">115200</option>' +
-            '<option value="230400">230400</option>' +
-            '<option value="250000">250000</option>' +
-            '<option value="500000">500000</option>' +
-            '<option value="1000000">1000000</option>' +
-            '<option value="2000000">2000000</option>' +
-            '</select>' +
-            '</div>' +
+        // Common Header
+        let html = `
+            <div class="card-header">
+                <div class="card-title">
+                    <input type="text" class="card-title-input" value="${connections[id].name}" onchange="window.updateConnectionName('${id}', this.value)">
+                    <div class="connection-id-group">
+                        <label class="id-label">ID:</label>
+                        <input type="text" class="connection-id-input" id="id_input_${id}" value="${id}" disabled>
+                        <button class="btn-edit-id" onclick="window.editConnectionId('${id}')" title="Edit Connection ID">Edit</button>
+                    </div>
+                </div>
+                <div class="card-controls">
+                    <div class="status-badge status-disconnected" id="status_${id}">
+                        <div class="status-dot"></div>
+                        Disconnected
+                    </div>
+                    <button class="btn-collapse" onclick="window.toggleCard('${id}')" title="Collapse/Expand">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
-            '<div class="button-row">' +
-            '<button class="btn" onclick="window.refreshPorts(\'' + id + '\')">Refresh</button>' +
-            '<button class="btn btn-primary" onclick="window.toggleConnection(\'' + id + '\')" id="connect_' + id + '">Connect</button>' +
-            '<button class="btn btn-danger" onclick="window.removeConnection(\'' + id + '\')">Remove</button>' +
-            '</div>' +
+            <div class="card-content" id="content_wrapper_${id}">
+                <!-- Type Toggle -->
+                <div class="connection-type-toggle">
+                    <div class="toggle-option active" id="toggle_serial_${id}" onclick="window.toggleConnectionType('${id}', 'serial')">USB</div>
+                    <div class="toggle-option" id="toggle_ble_${id}" onclick="window.toggleConnectionType('${id}', 'ble')">Bluetooth</div>
+                </div>
 
-            '<div class="data-preview" id="data_' + id + '">' +
-            '<div class="data-line">Waiting for data...</div>' +
-            '</div>';
+                <!-- Dynamic Content Area -->
+                <div id="content_${id}">
+                    ${getSerialFormHtml(id)}
+                </div>
+            </div>
+        `;
 
+        connectionCard.innerHTML = html;
         connectionsDiv.appendChild(connectionCard);
 
-        console.log('Connection card added to DOM');
+        // Populate the form with serial content by default
+        const contentDiv = document.getElementById('content_' + id);
+        if (contentDiv) {
+            contentDiv.innerHTML = getSerialFormHtml(id);
+        }
 
-        window.refreshPorts(id);
+        // Update connection counts
+        window.updateConnectionCounts();
+
+        console.log('Connection card added to DOM');
     };
+
+    window.updateConnectionName = function (id, newName) {
+        if (connections[id]) {
+            connections[id].name = newName;
+            console.log(`Updated name for ${id} to ${newName}`);
+        }
+    };
+
+    window.toggleConnectionType = function (id, type) {
+        if (!connections[id]) return;
+
+        // If already connected, warn user
+        if (connections[id].status === 'connected') {
+            if (!confirm('Switching connection type will disconnect the current device. Continue?')) {
+                return;
+            }
+            // Disconnect first
+            if (connections[id].type === 'ble') {
+                window.disconnectBLE(id);
+            } else {
+                // For serial, we don't have a disconnect function exposed yet, but we can just reset state
+                // In a real app, we'd call window.disconnectSerial(id)
+                connections[id].status = 'disconnected';
+                updateConnectionStatus(id, 'disconnected');
+            }
+        }
+
+        connections[id].type = type;
+        console.log(`Switched connection ${id} to ${type}`);
+
+        // Update Toggle UI
+        const serialToggle = document.getElementById(`toggle_serial_${id}`);
+        const bleToggle = document.getElementById(`toggle_ble_${id}`);
+
+        if (type === 'serial') {
+            serialToggle.classList.add('active');
+            bleToggle.classList.remove('active');
+        } else {
+            serialToggle.classList.remove('active');
+            bleToggle.classList.add('active');
+        }
+
+        // Update Content
+        const contentDiv = document.getElementById(`content_${id}`);
+        if (contentDiv) {
+            if (type === 'serial') {
+                contentDiv.innerHTML = getSerialFormHtml(id);
+            } else {
+                contentDiv.innerHTML = getBLEFormHtml(id);
+            }
+        }
+
+        // Update connection counts
+        window.updateConnectionCounts();
+    };
+
+    function getSerialFormHtml(id) {
+        return `
+            <div class="form-group">
+                <label class="form-label" for="port_${id}">Serial Port</label>
+                <select class="form-select" id="port_${id}">
+                    <option value="">Select port...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="baud_${id}">Baud Rate</label>
+                <select class="form-select" id="baud_${id}">
+                    <option value="300">300</option>
+                    <option value="1200">1200</option>
+                    <option value="2400">2400</option>
+                    <option value="4800">4800</option>
+                    <option value="9600" selected>9600</option>
+                    <option value="14400">14400</option>
+                    <option value="19200">19200</option>
+                    <option value="28800">28800</option>
+                    <option value="31250">31250</option>
+                    <option value="38400">38400</option>
+                    <option value="57600">57600</option>
+                    <option value="74880">74880</option>
+                    <option value="115200">115200</option>
+                    <option value="230400">230400</option>
+                    <option value="250000">250000</option>
+                    <option value="500000">500000</option>
+                    <option value="1000000">1000000</option>
+                    <option value="2000000">2000000</option>
+                </select>
+            </div>
+
+            <div class="button-row">
+                <button class="btn" onclick="window.refreshPorts('${id}')">Refresh</button>
+                <button class="btn btn-primary" onclick="window.toggleConnection('${id}')" id="connect_${id}">Connect</button>
+                <button class="btn btn-danger" onclick="window.removeConnection('${id}')">Remove</button>
+            </div>
+        `;
+    }
+
+    function getBLEFormHtml(id) {
+        return `
+            <div class="form-group">
+                <label class="form-label">Bluetooth Device</label>
+                <select class="form-select" id="ble_device_${id}">
+                    <option value="">Click Scan to find devices...</option>
+                </select>
+            </div>
+
+            <div class="button-row">
+                <button class="btn" onclick="window.scanBLE('${id}')" id="scan_${id}">Scan</button>
+                <button class="btn btn-primary" onclick="window.finalizeBLEConnection('${id}')" id="connect_${id}" disabled>Connect</button>
+                <button class="btn btn-danger" onclick="window.removeConnection('${id}')">Remove</button>
+            </div>
+
+            <div class="data-preview" id="data_${id}">
+                <div class="data-line">Not connected</div>
+            </div>
+        `;
+    }
+
+
+
+
 
     window.refreshPorts = async function (id) {
         console.log('Refreshing ports for:', id);
@@ -981,8 +1103,21 @@
     window.removeConnection = function (id) {
         console.log('Removing connection:', id);
 
-        if (connections[id] && connections[id].status === 'connected') {
-            window.toggleConnection(id);
+        if (connections[id]) {
+            // Disconnect if connected
+            if (connections[id].status === 'connected') {
+                if (connections[id].type === 'ble') {
+                    window.disconnectBLE(id);
+                } else {
+                    window.toggleConnection(id);
+                }
+            }
+
+            // Cancel any active BLE scan
+            if (scanningConnectionId === id) {
+                if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+                scanningConnectionId = null;
+            }
         }
 
         delete connections[id];
@@ -998,10 +1133,85 @@
                 emptyState.style.display = '';
             }
         }
+
+        // Update connection counts
+        window.updateConnectionCounts();
+    };
+
+    window.toggleCard = function (id) {
+        const card = document.getElementById('card_' + id);
+        if (card) {
+            card.classList.toggle('collapsed');
+        }
     };
 
     window.showUsageInfo = function () {
         window.showUsageModal();
+    };
+
+    window.toggleWorkspaceCollapse = function () {
+        const subcategories = document.getElementById('workspace-subcategories');
+        const chevron = document.querySelector('.nav-icon-chevron');
+
+        if (subcategories && chevron) {
+            subcategories.classList.toggle('collapsed');
+            chevron.classList.toggle('rotated');
+        }
+    };
+
+    window.filterConnections = function (type) {
+        console.log('Filtering connections by type:', type);
+
+        // Update active state in sidebar
+        const navItems = document.querySelectorAll('.nav-section .nav-item');
+        navItems.forEach(item => {
+            item.classList.remove('active');
+        });
+
+        // Set active based on filter type
+        if (type === 'all') {
+            navItems[0].classList.add('active');
+        } else if (type === 'serial') {
+            navItems[1].classList.add('active');
+        } else if (type === 'ble') {
+            navItems[2].classList.add('active');
+        }
+
+        // Filter connection cards
+        for (const id in connections) {
+            const card = document.getElementById('card_' + id);
+            if (!card) continue;
+
+            if (type === 'all') {
+                card.style.display = '';
+            } else if (type === connections[id].type) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        }
+
+        // Update counts
+        updateConnectionCounts();
+    };
+
+    window.updateConnectionCounts = function () {
+        let serialCount = 0;
+        let bleCount = 0;
+
+        for (const id in connections) {
+            if (connections[id].type === 'serial') {
+                serialCount++;
+            } else if (connections[id].type === 'ble') {
+                bleCount++;
+            }
+        }
+
+        const serialCountEl = document.getElementById('serial-count');
+        const bleCountEl = document.getElementById('ble-count');
+
+        if (serialCountEl) serialCountEl.textContent = serialCount;
+        if (bleCountEl) bleCountEl.textContent = bleCount;
     };
 
     window.showUsageModal = function () {
@@ -1019,9 +1229,214 @@
         localStorage.setItem('usageModalSeen', 'true');
     };
 
-    // Show modal on first visit
+    window.saveSession = function () {
+        console.log('Saving session...');
+
+        // Create configuration object
+        const config = {
+            version: '1.0',
+            timestamp: new Date().toISOString(),
+            connections: {}
+        };
+
+        // Extract connection configurations (exclude runtime state)
+        for (const id in connections) {
+            const conn = connections[id];
+            config.connections[id] = {
+                name: conn.name,
+                type: conn.type
+            };
+
+            // Add type-specific configuration
+            if (conn.type === 'serial') {
+                config.connections[id].port = conn.port;
+                config.connections[id].baudRate = conn.baudRate || 9600;
+            } else if (conn.type === 'ble') {
+                config.connections[id].deviceId = conn.deviceId;
+                config.connections[id].deviceName = conn.deviceName;
+            }
+        }
+
+        // Convert to JSON
+        const jsonString = JSON.stringify(config, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+
+        // Trigger download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `serial-bridge-session-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log('Session saved successfully');
+    };
+
+    window.loadSession = function () {
+        console.log('Loading session...');
+
+        // Create file input
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+
+        input.onchange = function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                try {
+                    const config = JSON.parse(event.target.result);
+
+                    // Validate configuration
+                    if (!config.version || !config.connections) {
+                        alert('Invalid session file format');
+                        return;
+                    }
+
+                    // Confirm before clearing existing connections
+                    if (Object.keys(connections).length > 0) {
+                        if (!confirm('Loading a session will replace all current connections. Continue?')) {
+                            return;
+                        }
+                    }
+
+                    // Clear existing connections
+                    const existingIds = Object.keys(connections);
+                    for (const id of existingIds) {
+                        window.removeConnection(id);
+                    }
+
+                    // Load connections from config
+                    for (const id in config.connections) {
+                        const connConfig = config.connections[id];
+
+                        // Create connection object
+                        connections[id] = {
+                            status: 'disconnected',
+                            type: connConfig.type,
+                            name: connConfig.name,
+                            port: connConfig.port || null,
+                            baudRate: connConfig.baudRate || 9600,
+                            deviceId: connConfig.deviceId || null,
+                            deviceName: connConfig.deviceName || null
+                        };
+
+                        // Create UI card
+                        const emptyState = document.getElementById('empty-state');
+                        if (emptyState) {
+                            emptyState.style.display = 'none';
+                        }
+
+                        const connectionsDiv = document.getElementById('connections');
+                        if (!connectionsDiv) continue;
+
+                        const connectionCard = document.createElement('div');
+                        connectionCard.className = 'connection-card';
+                        connectionCard.id = 'card_' + id;
+                        connectionCard.setAttribute('draggable', 'true');
+
+                        // Drag Events
+                        connectionCard.addEventListener('dragstart', () => {
+                            setTimeout(() => {
+                                connectionCard.classList.add('dragging');
+                            }, 0);
+                        });
+
+                        connectionCard.addEventListener('dragend', () => {
+                            connectionCard.classList.remove('dragging');
+                        });
+
+                        // Build HTML based on type
+                        let html = `
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <input type="text" class="card-title-input" value="${connConfig.name}" onchange="window.updateConnectionName('${id}', this.value)">
+                                    <div class="connection-id-group">
+                                        <label class="id-label">ID:</label>
+                                        <input type="text" class="connection-id-input" id="id_input_${id}" value="${id}" disabled>
+                                        <button class="btn-edit-id" onclick="window.editConnectionId('${id}')" title="Edit Connection ID">Edit</button>
+                                    </div>
+                                </div>
+                                <div class="card-controls">
+                                    <div class="status-badge status-disconnected" id="status_${id}">
+                                        <div class="status-dot"></div>
+                                        Disconnected
+                                    </div>
+                                    <button class="btn-collapse" onclick="window.toggleCard('${id}')" title="Collapse/Expand">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card-content" id="content_wrapper_${id}">
+                                <div class="connection-type-toggle">
+                                    <div class="toggle-option ${connConfig.type === 'serial' ? 'active' : ''}" id="toggle_serial_${id}" onclick="window.toggleConnectionType('${id}', 'serial')">USB</div>
+                                    <div class="toggle-option ${connConfig.type === 'ble' ? 'active' : ''}" id="toggle_ble_${id}" onclick="window.toggleConnectionType('${id}', 'ble')">Bluetooth</div>
+                                </div>
+
+                                <div id="content_${id}">
+                                    ${connConfig.type === 'serial' ? getSerialFormHtml(id) : getBLEFormHtml(id)}
+                                </div>
+                            </div>
+                        `;
+
+                        connectionCard.innerHTML = html;
+                        connectionsDiv.appendChild(connectionCard);
+
+                        // If serial type, update port selection
+                        if (connConfig.type === 'serial' && connConfig.port) {
+                            const portSelect = document.getElementById('port_' + id);
+                            if (portSelect) {
+                                // Add the saved port as an option if it doesn't exist
+                                let optionExists = false;
+                                for (let i = 0; i < portSelect.options.length; i++) {
+                                    if (portSelect.options[i].value === connConfig.port) {
+                                        optionExists = true;
+                                        break;
+                                    }
+                                }
+                                if (!optionExists) {
+                                    const option = document.createElement('option');
+                                    option.value = connConfig.port;
+                                    option.textContent = connConfig.port;
+                                    portSelect.appendChild(option);
+                                }
+                                portSelect.value = connConfig.port;
+                            }
+
+                            const baudSelect = document.getElementById('baud_' + id);
+                            if (baudSelect) {
+                                baudSelect.value = connConfig.baudRate;
+                            }
+                        }
+                    }
+
+                    console.log('Session loaded successfully');
+                    alert('Session loaded successfully!');
+
+                } catch (error) {
+                    console.error('Error loading session:', error);
+                    alert('Error loading session file: ' + error.message);
+                }
+            };
+
+            reader.readAsText(file);
+        };
+
+        input.click();
+    };
+
+    // Show usage modal on first load
     if (!localStorage.getItem('usageModalSeen')) {
-        window.showUsageModal();
+        setTimeout(() => {
+            window.showUsageModal();
+        }, 500);
     }
 
     // Debug helper
