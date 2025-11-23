@@ -1,17 +1,37 @@
+/**
+ * Serial Bridge - Client UI
+ * 
+ * This file handles the browser-side user interface for managing connections.
+ * It provides:
+ * - Connection card creation and management
+ * - USB Serial and Bluetooth (BLE) connection UI
+ * - Drag-and-drop reordering of connections
+ * - Session save/load functionality
+ * - Real-time data display
+ * 
+ * Code Organization:
+ * - Setup & Initialization (lines 1-100)
+ * - Drag & Drop Logic (lines 100-200)
+ * - Bluetooth (BLE) Functions (lines 200-500)
+ * - Connection Management (lines 500-900)
+ * - UI Helper Functions (lines 900-1200)
+ * - Session Management (lines 1200-1400)
+ */
+
 (function () {
     console.log('Serial Bridge JavaScript loading...');
 
     const socket = io();
 
-    // BLE Configuration
+    // ===== CONFIGURATION =====
+    // BLE UART Service UUIDs (Nordic UART Service standard)
     const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
     const UART_RX_CHAR_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // Write to this
     const UART_TX_CHAR_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Read from this
 
-    let connections = {};
-
-    // Global to track which card is currently scanning
-    let scanningConnectionId = null;
+    // ===== STATE MANAGEMENT =====
+    let connections = {};           // Stores all connection data (id -> connection object)
+    let scanningConnectionId = null; // Tracks which card is currently scanning for BLE
 
     // IPC Renderer is exposed via preload.js as window.electron.ipcRenderer
     const ipcRenderer = window.electron ? window.electron.ipcRenderer : null;
@@ -86,8 +106,11 @@
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
-    // Add a new BLE configuration card
-
+    // ========================================
+    // BLUETOOTH (BLE) FUNCTIONS
+    // ========================================
+    // These functions handle Bluetooth Low Energy device scanning and connection
+    // BLE is used for devices like Arduino Uno R4 WiFi that don't create COM ports
 
     // Start scanning for this card
     window.scanBLE = async function (id) {
@@ -713,6 +736,16 @@
         };
     };
 
+    // ========================================
+    // CONNECTION MANAGEMENT
+    // ========================================
+    // These functions handle creating, updating, and removing connection cards
+
+    /**
+     * Creates a new connection card
+     * This is called when the user clicks "+ New Connection"
+     * By default, creates a USB Serial connection
+     */
     window.addConnection = function () {
         console.log('Adding new connection...');
 
@@ -804,6 +837,12 @@
             contentDiv.innerHTML = getSerialFormHtml(id);
         }
 
+        // Automatically refresh ports for serial connections
+        // Use setTimeout to ensure DOM elements are fully rendered
+        setTimeout(() => {
+            window.refreshPorts(id);
+        }, 100);
+
         // Update connection counts
         window.updateConnectionCounts();
 
@@ -856,6 +895,10 @@
         if (contentDiv) {
             if (type === 'serial') {
                 contentDiv.innerHTML = getSerialFormHtml(id);
+                // Automatically refresh ports when switching to serial
+                setTimeout(() => {
+                    window.refreshPorts(id);
+                }, 100);
             } else {
                 contentDiv.innerHTML = getBLEFormHtml(id);
             }
@@ -902,6 +945,10 @@
                 <button class="btn" onclick="window.refreshPorts('${id}')">Refresh</button>
                 <button class="btn btn-primary" onclick="window.toggleConnection('${id}')" id="connect_${id}">Connect</button>
                 <button class="btn btn-danger" onclick="window.removeConnection('${id}')">Remove</button>
+            </div>
+
+            <div class="data-preview" id="data_${id}">
+                <div class="data-line">Not connected</div>
             </div>
         `;
     }
@@ -1021,6 +1068,10 @@
                 if (!result.success) {
                     throw new Error(result.error);
                 }
+
+                // Update UI immediately on success
+                // The socket event will also update it, but this ensures immediate feedback
+                updateConnectionStatus(id, 'connected', selectedPort);
 
             } catch (error) {
                 console.error('Connection failed:', error);
@@ -1229,6 +1280,16 @@
         localStorage.setItem('usageModalSeen', 'true');
     };
 
+    // ========================================
+    // SESSION MANAGEMENT
+    // ========================================
+    // Save and load connection configurations as JSON files
+
+    /**
+     * Saves the current connections to a JSON file
+     * Exports connection names, types, ports, and settings
+     * Does NOT save runtime state (connected/disconnected status)
+     */
     window.saveSession = function () {
         console.log('Saving session...');
 

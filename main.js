@@ -1,3 +1,15 @@
+/**
+ * Serial Bridge - Main Process
+ * 
+ * This file runs the Electron main process and Express server.
+ * It handles:
+ * - Creating the desktop application window
+ * - Running a web server for the UI and API
+ * - Managing serial port connections
+ * - Broadcasting data via WebSockets (Socket.IO)
+ * - Handling Bluetooth device selection
+ */
+
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const express = require('express');
@@ -6,16 +18,28 @@ const { ReadlineParser } = require('@serialport/parser-readline');
 const http = require('http');
 const socketIo = require('socket.io');
 
-let mainWindow;
-let server;
-let io;
-let connections = new Map();
-let serverPort = 3000;
-let bluetoothCallback = null;
+// Global variables
+let mainWindow;              // The Electron browser window
+let server;                  // HTTP server instance
+let io;                      // Socket.IO instance for WebSocket communication
+let connections = new Map(); // Stores active serial port connections (id -> {port, parser})
+let serverPort = 3000;       // Default server port (will auto-increment if busy)
+let bluetoothCallback = null; // Callback for Bluetooth device selection
 
+/**
+ * Creates and configures the Express server and Socket.IO
+ * This server provides:
+ * - The web UI for managing connections
+ * - REST API endpoints for serial port operations
+ * - WebSocket server for real-time data streaming
+ */
 function createServer() {
     const expressApp = express();
-    expressApp.use(express.json());
+
+    // Middleware setup
+    expressApp.use(express.json()); // Parse JSON request bodies
+
+    // Enable CORS (Cross-Origin Resource Sharing) for external P5.js projects
     expressApp.use((req, res, next) => {
         res.header('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -23,13 +47,19 @@ function createServer() {
         next();
     });
 
-    // Serve static files from the public directory
+    // Serve static files from the public directory (HTML, CSS, JS, client library)
     expressApp.use(express.static(path.join(__dirname, 'public')));
 
-    // API Routes
+    /**
+     * API Route: GET /api/ports
+     * Returns a list of available serial ports
+     * Filters for common Arduino/microcontroller manufacturers
+     */
     expressApp.get('/api/ports', async (req, res) => {
         try {
             const ports = await SerialPort.list();
+
+            // Filter for Arduino and common USB-to-serial chips
             const arduinoPorts = ports.filter(port => {
                 if (!port.manufacturer) return false;
                 const manufacturer = port.manufacturer.toLowerCase();
@@ -48,10 +78,20 @@ function createServer() {
         }
     });
 
+    /**
+     * API Route: POST /api/connect
+     * Connects to a serial port and starts streaming data
+     * 
+     * Request body: { id, portPath, baudRate }
+     * - id: Unique identifier for this connection (e.g., "device_1")
+     * - portPath: Serial port path (e.g., "/dev/tty.usbmodem14101")
+     * - baudRate: Communication speed (default: 9600)
+     */
     expressApp.post('/api/connect', async (req, res) => {
         const { id, portPath, baudRate = 9600 } = req.body;
 
         try {
+            // Close existing connection if reconnecting
             if (connections.has(id)) {
                 const existingConnection = connections.get(id);
                 if (existingConnection.port && existingConnection.port.isOpen) {
@@ -59,42 +99,60 @@ function createServer() {
                 }
             }
 
+            // Create new serial port connection
             const serialPort = new SerialPort({
                 path: portPath,
                 baudRate: parseInt(baudRate),
-                autoOpen: false
+                autoOpen: false  // We'll open it manually to handle errors better
             });
 
+            // Create a parser to split incoming data by newlines
+            // This ensures we get complete messages, not partial data
             const parser = serialPort.pipe(new ReadlineParser({ delimiter: '\n' }));
 
+            // Event: When data arrives from the Arduino
             parser.on('data', (data) => {
                 const cleanData = data.trim();
                 if (cleanData) {
                     console.log('[DATA] ' + id + ': ' + cleanData);
+                    // Broadcast data to all connected web clients via WebSocket
                     io.emit('serial-data', { id, data: cleanData });
                 }
             });
 
+            // Event: When the port successfully opens
             serialPort.on('open', () => {
                 console.log('[CONNECTED] ' + id + ' on ' + portPath);
+                // Notify all clients that this device is now connected
                 io.emit('connection-status', { id, status: 'connected', port: portPath });
-                res.json({ success: true });
             });
 
+            // Event: If there's an error with the serial port
             serialPort.on('error', (error) => {
                 console.error('[ERROR] Serial error ' + id + ':', error);
                 io.emit('connection-status', { id, status: 'disconnected', error: error.message });
                 connections.delete(id);
             });
 
+            // Event: When the port closes (device unplugged, etc.)
             serialPort.on('close', () => {
                 console.log('[DISCONNECTED] ' + id);
                 io.emit('connection-status', { id, status: 'disconnected' });
                 connections.delete(id);
             });
 
+            // Store the connection for later reference
             connections.set(id, { port: serialPort, parser });
-            serialPort.open();
+
+            // Open the port and respond to the client
+            serialPort.open((err) => {
+                if (err) {
+                    console.error('Failed to open port ' + id + ':', err);
+                    res.status(500).json({ error: err.message });
+                } else {
+                    res.json({ success: true });
+                }
+            });
 
         } catch (error) {
             console.error('Failed to connect ' + id + ':', error);

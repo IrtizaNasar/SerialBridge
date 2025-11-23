@@ -30,11 +30,14 @@
 
 ## Features
 
-- **Multiple Arduino Support**: Connect and manage multiple Arduino boards simultaneously
-- **Real-time Data Streaming**: Stream sensor data to your P5.js sketches in real-time
+- **Multiple Device Support**: Connect and manage multiple USB and Bluetooth devices simultaneously
+- **Session Management**: Save and load your connection configurations for quick setup
+- **Connection Filtering**: Organize connections by type (USB/Bluetooth) with live counts
+- **Real-time Data Streaming**: Stream sensor data to your P5.js sketches with low latency
 - **Simple API**: Clean, beginner-friendly JavaScript client library
 - **Cross-Platform**: Works on macOS, Windows, and Linux
-- **WebSocket Communication**: Low-latency bidirectional communication
+- **WebSocket Communication**: Fast bidirectional communication
+- **Bluetooth Support**: Connect via USB Serial or Bluetooth Low Energy (BLE)
 - **Editable Connection IDs**: Customize connection identifiers for better project organization
   
 
@@ -125,17 +128,29 @@ npm run build
 
 ## Quick Start
 
-### 1. Connect Your Arduino
+### 1. Connect Your Device
 
 1. Launch the Serial Bridge application
-2. Click "New Connection" to add an Arduino
-3. Select your Arduino's port from the dropdown
-4. Click "Connect"
+2. Click **"+ New Connection"** to add a device
+3. Choose your connection type:
+   - **USB**: For devices connected via USB cable (automatically loads available ports)
+   - **Bluetooth**: For Bluetooth Low Energy (BLE) devices
+4. For USB connections:
+   - Select your device's port from the dropdown (ports load automatically)
+   - Choose the baud rate (default: 9600)
+   - Click **"Connect"**
+5. For Bluetooth connections:
+   - Click **"Scan"** to find nearby BLE devices
+   - Select your device from the list
+   - Click **"Connect"**
 
 > [!TIP]
 > **Identifying Your Board (Windows)**: On Windows, boards often appear as generic "USB Serial Device". The port list shows the Vendor ID (VID) and Product ID (PID) to help you identify them (e.g., `2341:0043`).
 > - `2341` is the code for **Arduino SA**.
 > - `0043` is the code for an **Arduino Uno**.
+
+> [!TIP]
+> **Organizing Connections**: Use the sidebar filters to view connections by type. Click "All Connections" to expand and see USB and Bluetooth counts.
 
 ### 2. Upload Arduino Sketch
 
@@ -345,6 +360,60 @@ await bridge.disconnectArduino('arduino_1');
 
 **Returns:** Promise
 
+## Session Management
+
+Serial Bridge allows you to save and load your connection configurations, making it easy to set up the same devices across different sessions or machines.
+
+### Saving a Session
+
+Click the **"Save Session"** button in the sidebar to export your current connections as a JSON file. This saves:
+- Connection names and IDs
+- Connection types (USB/Bluetooth)
+- Port configurations and baud rates
+- Device identifiers for Bluetooth
+
+**Use Cases:**
+- **Gallery Installations**: Save your setup and quickly restore it if the app restarts
+- **Multiple Machines**: Transfer your configuration between computers
+- **Backup**: Keep a backup of your working configuration
+- **Teaching**: Share connection setups with students
+
+### Loading a Session
+
+Click the **"Load Session"** button and select a previously saved JSON file. The app will:
+1. Ask for confirmation before clearing existing connections
+2. Recreate all connections from the file
+3. Automatically select saved ports if they're available
+4. Restore all connection settings
+
+> [!TIP]
+> If a saved port isn't currently available (e.g., device not plugged in), it will still appear in the dropdown so you can see what was configured.
+
+### Session File Format
+
+Sessions are saved as human-readable JSON files:
+
+```json
+{
+  "version": "1.0",
+  "timestamp": "2025-11-23T20:00:00.000Z",
+  "connections": {
+    "device_1": {
+      "name": "Sensor Array",
+      "type": "serial",
+      "port": "/dev/tty.usbmodem14101",
+      "baudRate": 9600
+    },
+    "device_2": {
+      "name": "LED Controller",
+      "type": "ble",
+      "deviceId": "ABC123",
+      "deviceName": "Uno R4 Bridge"
+    }
+  }
+}
+```
+
 ## Examples
 
 The `examples/` directory contains complete working examples:
@@ -374,17 +443,24 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ```
 SerialBridge/
-├── main.js                 # Electron main process
-├── public/                 # Bridge application UI
-│   ├── index.html
-│   ├── styles.css
-│   ├── client.js
-│   └── arduino-bridge.js   # Client library for P5.js
-├── examples/               # Example projects
-│   ├── basic-p5js/
-│   └── arduino-sketches/
-└── assets/                 # Application icons
+├── main.js                 # Electron main process & Express server
+├── preload.js              # Electron preload script for IPC
+├── public/                 # Bridge application UI & client library
+│   ├── index.html          # Main application interface
+│   ├── styles.css          # Application styling
+│   ├── client.js           # UI logic and connection management
+│   └── serial-bridge.js    # Client library for P5.js projects
+├── examples/               # Example projects & Arduino sketches
+│   ├── basic-p5js/         # P5.js visualization example
+│   └── arduino-sketches/   # Arduino code examples
+└── assets/                 # Application icons & documentation images
 ```
+
+### Key Files
+
+- **main.js**: Server-side logic for serial port communication and WebSocket handling
+- **client.js**: Browser-side UI for managing connections
+- **serial-bridge.js**: Simple API library that P5.js projects use to receive data
 
 ## Configuration
 
