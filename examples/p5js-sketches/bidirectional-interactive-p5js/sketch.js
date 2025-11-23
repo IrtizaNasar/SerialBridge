@@ -43,6 +43,7 @@ function setup() {
 }
 
 function draw() {
+    connectionDisplay();
     // Dark background with gradient
     for (let i = 0; i <= height; i++) {
         let inter = map(i, 0, height, 0, 1);
@@ -58,14 +59,7 @@ function draw() {
     textSize(20);
     text('Arduino Data Visualization', width / 2, 30);
 
-    // Connection status indicator
-    let statusColor = isConnected ? color(16, 185, 129) : color(239, 68, 68);
-    fill(statusColor);
-    circle(width / 2, 55, 12);
 
-    textSize(12);
-    fill(150);
-    text(connectionStatus.toUpperCase(), width / 2, 75);
 
     if (isConnected || dataHistory.length > 0) {
         drawVisualization();
@@ -74,6 +68,16 @@ function draw() {
     }
 }
 
+function connectionDisplay() {
+    // Connection status indicator
+    let statusColor = isConnected ? color(16, 185, 129) : color(239, 68, 68);
+    fill(statusColor);
+    circle(width / 2, 55, 12);
+
+    textSize(12);
+    fill(150);
+    text(connectionStatus.toUpperCase(), width / 2, 75);
+}
 function drawVisualization() {
     // Bar chart
     push();
