@@ -334,6 +334,21 @@ function createWindow() {
         }
     });
 
+    // Handle bluetooth pairing request (for Device Profiles)
+    ipcMain.handle('bluetooth-pairing-request', async (event, serviceUuid) => {
+        console.log('Main: Bluetooth pairing request for service:', serviceUuid);
+
+        try {
+            // Trigger the Bluetooth device picker
+            // The mainWindow.webContents.on('select-bluetooth-device') handler will be called
+            // We don't need to do anything here except acknowledge the request
+            return { success: true };
+        } catch (error) {
+            console.error('Main: Error in bluetooth-pairing-request:', error);
+            throw error;
+        }
+    });
+
     mainWindow.loadURL(`http://localhost:${serverPort}`);
     mainWindow.setMenuBarVisibility(false);
 }

@@ -25,9 +25,27 @@
 
     // ===== CONFIGURATION =====
     // BLE UART Service UUIDs (Nordic UART Service standard)
+    // BLE UART Service UUIDs (Nordic UART Service standard)
     const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
     const UART_RX_CHAR_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // Write to this
     const UART_TX_CHAR_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Read from this
+
+    // ===== DEVICE PROFILES =====
+    const DEVICE_PROFILES = {
+        'generic_uart': {
+            name: 'Generic UART (Arduino/ESP32)',
+            service: UART_SERVICE_UUID,
+            characteristic: UART_TX_CHAR_UUID,
+            writeCharacteristic: UART_RX_CHAR_UUID,
+            parser: parseGenericUART
+        },
+        'muse_2': {
+            name: 'Muse 2 Headset',
+            service: 0xfe8d,  // Muse service UUID (16-bit format)
+            characteristic: '273e0003-4c4d-454d-96be-f03bac821358', // EEG characteristic
+            parser: parseMuseData
+        }
+    };
 
     // ===== STATE MANAGEMENT =====
     let connections = {};           // Stores all connection data (id -> connection object)
@@ -331,15 +349,31 @@
             // Increased to 1000ms to fix "GATT Service no longer exists"
             await new Promise(resolve => setTimeout(resolve, 1000));
 
+            // Get selected profile
+            const profileSelect = document.getElementById('ble_profile_' + targetId);
+            const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
+            const profile = DEVICE_PROFILES[profileKey];
+
+            console.log(`Connecting using profile: ${profile.name}`);
+
             console.log('Getting Service...');
-            const service = await server.getPrimaryService(UART_SERVICE_UUID);
+            const service = await server.getPrimaryService(profile.service);
 
             console.log('Getting Characteristics...');
-            const txChar = await service.getCharacteristic(UART_TX_CHAR_UUID);
+            const txChar = await service.getCharacteristic(profile.characteristic);
 
             console.log('Starting Notifications...');
             await txChar.startNotifications();
-            txChar.addEventListener('characteristicvaluechanged', handleBLEData);
+
+            // Store profile parser in the connection object for use in handleBLEData
+            if (targetId && connections[targetId]) {
+                connections[targetId].profile = profileKey;
+                connections[targetId].parser = profile.parser;
+            }
+
+            txChar.addEventListener('characteristicvaluechanged', (event) => {
+                handleBLEData(event, targetId);
+            });
 
             console.log('BLE Connected!');
 
@@ -432,29 +466,69 @@
         }
     }
 
-    function handleBLEData(event) {
-        const value = event.target.value;
+    // ===== DATA PARSERS =====
+    // Parse Generic UART data (text-based)
+    function parseGenericUART(dataView) {
         const decoder = new TextDecoder('utf-8');
-        const data = decoder.decode(value);
+        return decoder.decode(dataView);
+    }
 
-        // Find the ID for this device
-        const device = event.target.service.device;
-        let connectionId = null;
+    // Parse Muse 2 data (binary packets)
+    function parseMuseData(dataView) {
+        // Muse sends binary packets with EEG data
+        // This is a simplified implementation based on Muse protocol specs
+        const byteLength = dataView.byteLength;
 
-        for (const [id, conn] of Object.entries(connections)) {
-            if (conn.type === 'ble' && conn.device === device) {
-                connectionId = id;
-                break;
+        if (byteLength < 20) {
+            // Not enough data for a valid packet
+            return null;
+        }
+
+        // Muse EEG packets contain 12 samples per channel
+        // Format: [index][ch1_sample1][ch1_sample2]...[ch4_sample12]
+        const packetIndex = dataView.getUint16(0, false);
+
+        // Extract EEG values (simplified - real implementation would decode all 12 samples)
+        // For demo purposes, we'll just extract the first sample from each channel
+        const eegData = {
+            type: 'eeg',
+            timestamp: Date.now(),
+            index: packetIndex,
+            data: {
+                tp9: dataView.getUint16(2, false),   // Left ear
+                af7: dataView.getUint16(4, false),   // Left forehead
+                af8: dataView.getUint16(6, false),   // Right forehead
+                tp10: dataView.getUint16(8, false),  // Right ear
+                aux: dataView.getUint16(10, false)   // Auxiliary
             }
+        };
+
+        return JSON.stringify(eegData);
+    }
+
+    function handleBLEData(event, connectionId) {
+        const value = event.target.value;
+
+        // Get the connection and its parser
+        const connection = connections[connectionId];
+        if (!connection || !connection.parser) {
+            console.warn('No parser found for connection:', connectionId);
+            return;
         }
 
-        if (connectionId) {
-            // Forward to socket
-            socket.emit('ble-data', { device: connectionId, data: data });
+        // Use the connection's parser to decode the data
+        const parsedData = connection.parser(value);
 
-            // Update UI using standard function
-            displaySerialData(connectionId, data);
+        if (parsedData === null) {
+            // Parser returned null (invalid/incomplete packet)
+            return;
         }
+
+        // Forward to socket
+        socket.emit('ble-data', { device: connectionId, data: parsedData });
+
+        // Update UI using standard function
+        displaySerialData(connectionId, parsedData);
     }
 
     function addBLEToUI(id, name) {
@@ -556,7 +630,7 @@
                     btn.disabled = true;
                 }
 
-                await setupBLEDevice(conn.device);
+                await setupBLEDevice(conn.device, id);
 
             } catch (error) {
                 console.error('Reconnection failed:', error);
@@ -565,6 +639,88 @@
             }
         } else {
             alert('Device information lost. Please remove and add again.');
+        }
+    };
+
+    // Start BLE Scan
+    window.scanBLE = async function (id) {
+        console.log('Starting BLE scan for card:', id);
+
+        // Prevent rapid re-scanning which can cause Bluetooth API to hang
+        const now = Date.now();
+        if (now - lastScanTime < SCAN_COOLDOWN) {
+            console.log('Scan cooldown active, please wait...');
+            return;
+        }
+        lastScanTime = now;
+
+        // Reset any previous scanning state
+        if (scanningConnectionId && scanningConnectionId !== id) {
+            console.warn('Another card was scanning, cancelling it first');
+            if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+            // Wait a bit for cancellation to process
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        scanningConnectionId = id;
+        const scanBtn = document.getElementById('scan_' + id);
+        const select = document.getElementById('ble_device_' + id);
+        const profileSelect = document.getElementById('ble_profile_' + id);
+
+        if (scanBtn) {
+            scanBtn.textContent = 'Scanning...';
+            scanBtn.disabled = true; // Disable button during scan
+        }
+        if (select) {
+            select.innerHTML = '<option>Scanning...</option>';
+            select.disabled = true;
+        }
+
+        // Get selected profile
+        const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
+        const profile = DEVICE_PROFILES[profileKey];
+
+        console.log(`Scanning for profile: ${profile.name} (Service: ${profile.service})`);
+
+        try {
+            console.log('Calling navigator.bluetooth.requestDevice...');
+
+            // Request device - this will trigger the native Bluetooth picker
+            const device = await navigator.bluetooth.requestDevice({
+                filters: [{ services: [profile.service] }],
+                optionalServices: [profile.service]
+            });
+
+            console.log('Device selected:', device.name);
+
+            // Device was selected, now connect to it
+            await setupBLEDevice(device, id);
+
+        } catch (error) {
+            console.error('BLE Scan Error:', error);
+
+            // Don't show alert for user cancellation
+            if (error.name !== 'NotFoundError' && error.name !== 'NotAllowedError') {
+                alert('Error scanning for devices: ' + error.message);
+            }
+
+            // Make sure to send cancellation to main process
+            if (ipcRenderer && error.name !== 'NotFoundError') {
+                ipcRenderer.send('bluetooth-device-cancelled');
+            }
+        } finally {
+            console.log('Scan complete, resetting scanningConnectionId');
+            scanningConnectionId = null;
+            if (scanBtn) {
+                scanBtn.disabled = false; // Re-enable scan button
+                // Reset button text based on whether devices were found
+                const select = document.getElementById('ble_device_' + id);
+                if (select && select.options.length > 1) {
+                    scanBtn.textContent = 'Rescan';
+                } else {
+                    scanBtn.textContent = 'Scan';
+                }
+            }
         }
     };
 
@@ -1001,7 +1157,20 @@
     }
 
     function getBLEFormHtml(id) {
+        // Generate options from DEVICE_PROFILES
+        let profileOptions = '';
+        for (const [key, profile] of Object.entries(DEVICE_PROFILES)) {
+            profileOptions += `<option value="${key}">${profile.name}</option>`;
+        }
+
         return `
+            <div class="form-group">
+                <label class="form-label">Device Profile</label>
+                <select class="form-select" id="ble_profile_${id}" onchange="window.handleProfileChange('${id}')">
+                    ${profileOptions}
+                </select>
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Bluetooth Device</label>
                 <select class="form-select" id="ble_device_${id}">
@@ -1017,9 +1186,43 @@
 
             <div class="data-preview" id="data_${id}">
                 <div class="data-line">Not connected</div>
-            </div>
         `;
     }
+
+    // Handle profile change - reset device list and scan button
+    window.handleProfileChange = function (id) {
+        console.log('handleProfileChange called for:', id);
+
+        // Cancel any ongoing scan for this connection
+        if (scanningConnectionId === id) {
+            console.log('Cancelling ongoing scan due to profile change');
+            if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+            scanningConnectionId = null;
+        }
+
+        const select = document.getElementById('ble_device_' + id);
+        const scanBtn = document.getElementById('scan_' + id);
+        const connectBtn = document.getElementById('connect_' + id);
+
+        console.log('Elements found:', { select: !!select, scanBtn: !!scanBtn, connectBtn: !!connectBtn });
+
+        if (select) {
+            select.innerHTML = '<option value="">Click Scan to find devices...</option>';
+            select.disabled = false;
+        }
+
+        if (scanBtn) {
+            console.log('Resetting scan button text from:', scanBtn.textContent, 'to: Scan');
+            scanBtn.textContent = 'Scan';
+            scanBtn.disabled = false;
+        }
+
+        if (connectBtn) {
+            connectBtn.disabled = true;
+        }
+
+        console.log('Device profile changed for connection:', id);
+    };
 
 
 
