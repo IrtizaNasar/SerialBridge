@@ -3,9 +3,11 @@
 This folder contains examples demonstrating how to use the Serial Bridge with P5.js and Arduino.
 
 ## 📁 Contents
+
 ### `/p5js-sketches/`
 
 **How to use:**
+
 1. Start the Serial Bridge desktop app
 2. Add a connection with ID `arduino_1`
 3. Upload one of the Arduino sketches to your board
@@ -13,26 +15,31 @@ This folder contains examples demonstrating how to use the Serial Bridge with P5
 5. Observe the real-time visualization
 
 #### `/basic-input-p5js/`
+
 A simple P5.js sketch that visualizes data from an Arduino in real-time as a circle on a canvas.
 
 **Features:**
+
 - Connects to Serial Bridge
 - Receives data from `arduino_1`
 - Displays data as a circle
 
-
 #### `/basic-output-p5js/`
+
 A simple P5.js sketch that sends mouseX data to an Arduino in real-time to control the brightness of an LED.
 
 **Features:**
+
 - Connects to Serial Bridge
 - Send data to `arduino_1`
 - Uses mouseX to control LED brightness
 
 #### `/multi-input-easy-p5js/`
+
 A simple P5.js sketch that visualizes two sets of values from an Arduino in real-time.
 
 **Features:**
+
 - Connects to Serial Bridge
 - Receives data from `arduino_1`
 - Splits the data into two values
@@ -40,9 +47,11 @@ A simple P5.js sketch that visualizes two sets of values from an Arduino in real
 - Displays the second set of data as a square
 
 #### `/multi-input-array-p5js/`
+
 A P5.js sketch that visualizes an array values from an Arduino in real-time.
 
 **Features:**
+
 - Connects to Serial Bridge
 - Receives data from `arduino_1`
 - Splits the data into multiple values
@@ -52,9 +61,11 @@ A P5.js sketch that visualizes an array values from an Arduino in real-time.
 - Demonstrates how to scale the examples for as many inputs as required.
 
 #### `/store-input-p5js/`
+
 A simple P5.js sketch that visualizes data from an Arduino in real-time as a circle on a canvas. Stores this value in a simple JSON object.
 
 **Features:**
+
 - Connects to Serial Bridge
 - Receives data from `arduino_1`
 - Displays data as a circle
@@ -62,9 +73,11 @@ A simple P5.js sketch that visualizes data from an Arduino in real-time as a cir
 - Svaes JSON file on keypress
 
 #### `/store-multi-input-p5js/`
+
 A P5.js sketch that visualizes multiple data inputs from an Arduino in real-time. Stores these values in a JSON array as multiple objects.
 
 **Features:**
+
 - Connects to Serial Bridge
 - Receives data from `arduino_1`
 - Displays data as a circle
@@ -72,47 +85,54 @@ A P5.js sketch that visualizes multiple data inputs from an Arduino in real-time
 - Saves JSON file on keypress
 
 #### `/bidirectional-interactive-p5js/`
+
 A simple P5.js sketch that visualizes data from an Arduino in real-time and sends data back to control an LED.
 
 **Features:**
+
 - Connects to Serial Bridge
 - Receives data from `arduino_1`
 - Displays data as a bar chart and line graph
 - Shows connection status indicator
 
-
-
 ### `/arduino-sketches/`
+
 Example Arduino sketches compatible with the Bridge.
 
 #### `basic-sensor.ino`
+
 - Reads an analog sensor (A0) and sends values to serial
 - Ideal for getting started
 - Compatible with potentiometers, light sensors, etc.
 
-#### `basic-send.ino`
+#### `basic-send-data.ino`
+
 - Reads an analog sensor (A0) and sends values to serial
 - Ideal for getting started
 - Compatible with potentiometers, light sensors, etc.
 
-#### `basic-recieve.ino`
+#### `basic-recieve-data.ino`
+
 - Recieves data from a p5js sketch over serial
 - Uses the data to control analogWrite() values.
 - Ideal for getting started
 - Compatible with outputs such as LEDs, DC Motors etc
 
 #### `send-multi-data.ino`
+
 - Reads two analog sensors (A0), (A1) and sends values to serial
 - Demonstrates comma separated serial data
 - Compatible with potentiometers, light sensors, etc.
 
 #### `send-multi-array.ino`
+
 - Reads three analog sensors (A0), (A1), (A2) and sends values to serial
 - Demonstrates how to use comma separated serial data
 - Uses an array of sensorPins to demonstrate how to scale the example to as many inputs as you wish.
 - Compatible with potentiometers, light sensors, etc.
 
 #### `bidirectional-interactive.ino`
+
 - Demonstrates bidirectional communication
 - Sends sensor data AND receives commands
 - Controls LED brightness based on keyboard input from P5.js
@@ -121,12 +141,14 @@ Example Arduino sketches compatible with the Bridge.
 ## 🚀 Quick Start
 
 ### Step 1: Arduino Setup
+
 ```cpp
 // Upload basic-sensor.ino to your Arduino
 // Ensure baud rate matches (default: 9600)
 ```
 
 ### Step 2: Bridge Setup
+
 1. Open Serial Bridge app
 2. Click "New Connection"
 3. Set ID to `arduino_1`
@@ -134,6 +156,7 @@ Example Arduino sketches compatible with the Bridge.
 5. Click "Connect"
 
 ### Step 3: P5.js Setup
+
 ```html
 <!-- Include these in your HTML head -->
 <script src="http://localhost:3000/socket.io/socket.io.js"></script>
@@ -144,8 +167,8 @@ Example Arduino sketches compatible with the Bridge.
 // In your sketch.js
 let bridge = new SerialBridge(); // Auto-detects URL
 
-bridge.onData('arduino_1', (data) => {
-  console.log('Received:', data);
+bridge.onData("arduino_1", (data) => {
+  console.log("Received:", data);
   // Implement your creative logic here!
 });
 ```
@@ -155,28 +178,30 @@ bridge.onData('arduino_1', (data) => {
 The `serial-bridge.js` library provides a simple API for communication:
 
 ### Basic Usage
+
 ```javascript
 // Create connection
 const bridge = new SerialBridge();
 
 // Listen for data
-bridge.onData('arduino_1', (data) => {
+bridge.onData("arduino_1", (data) => {
   console.log(data);
 });
 
 // Send data to Arduino
-bridge.send('arduino_1', 'TOGGLE');
+bridge.send("arduino_1", "TOGGLE");
 
 // Monitor connection status
-bridge.onStatus('arduino_1', (status, port) => {
+bridge.onStatus("arduino_1", (status, port) => {
   console.log(`Status: ${status}, Port: ${port}`);
 });
 ```
 
 ### Advanced Features
+
 ```javascript
 // Listen to ALL Arduinos
-bridge.onData('*', (data, id) => {
+bridge.onData("*", (data, id) => {
   console.log(`${id} sent: ${data}`);
 });
 
@@ -184,15 +209,15 @@ bridge.onData('*', (data, id) => {
 const ports = await bridge.getPorts();
 
 // Connect an Arduino programmatically
-await bridge.connectArduino('arduino_1', '/dev/cu.usbmodem14101', 9600);
+await bridge.connectArduino("arduino_1", "/dev/cu.usbmodem14101", 9600);
 
 // Disconnect
-await bridge.disconnectArduino('arduino_1');
+await bridge.disconnectArduino("arduino_1");
 ```
 
 ## 🐻 Creating Custom Examples
 
-1. Duplicate the `basic-p5js` folder
+1. Duplicate the `basic-input-p5js` folder
 2. Modify `sketch.js` to implement your logic
 3. Upload an Arduino sketch that sends the required data
 4. Connect everything via the Bridge app
@@ -208,16 +233,19 @@ await bridge.disconnectArduino('arduino_1');
 ## 🐛 Troubleshooting
 
 **Connection failed in P5.js?**
+
 - Verify the Bridge app is running.
 - Ensure the server URL is `http://localhost:3000`.
 - Check the browser console for errors.
 
 **No data received?**
+
 - Verify Arduino is connected in the Bridge app (green status).
 - Check the Arduino Serial Monitor to ensure it is sending data.
 - Confirm you are listening to the correct Arduino ID.
 
 **Data appears corrupted?**
+
 - Verify baud rates match (9600).
 - Use `Serial.println()` instead of `Serial.print()` to ensure proper line termination.
 - Send simple data formats.
@@ -229,5 +257,3 @@ await bridge.disconnectArduino('arduino_1');
 - Create interactive installations
 - Build complex data visualizations
 - Experiment with different sensors
-
-
