@@ -34,6 +34,26 @@ Example Arduino sketches compatible with the Bridge.
 - Controls LED brightness based on keyboard input from P5.js
 - Commands: `TOGGLE` (spacebar) and `VALUE:0-9` (number keys)
 
+#### `ble-uno-r4.ino`
+- Bluetooth Low Energy example for Arduino Uno R4 WiFi
+- Implements Nordic UART Service (NUS) for serial-over-BLE
+- Bidirectional communication supported
+
+#### `ble-nano33.ino`
+- Bluetooth Low Energy example for Arduino Nano 33 BLE
+- Same NUS implementation as Uno R4
+- **Note:** Use `BLE.setLocalName()` to set a unique name for identification
+
+### `/basic-p5js/`
+
+#### `sketch.js`
+- Basic data visualization (receive only)
+
+#### `sketch-ble-control.js`
+- Interactive LED control via Bluetooth (send & receive)
+- Works with both `ble-uno-r4.ino` and `ble-nano33.ino`
+- Press keys 1, 2, Space to control LED
+
 ## 🚀 Quick Start
 
 ### Step 1: Arduino Setup
@@ -45,7 +65,7 @@ Example Arduino sketches compatible with the Bridge.
 ### Step 2: Bridge Setup
 1. Open Serial Bridge app
 2. Click "New Connection"
-3. Set ID to `arduino_1`
+3. Set ID to `device_1` (or use default)
 4. Select your Arduino's port
 5. Click "Connect"
 
@@ -60,7 +80,7 @@ Example Arduino sketches compatible with the Bridge.
 // In your sketch.js
 let bridge = new SerialBridge(); // Auto-detects URL
 
-bridge.onData('arduino_1', (data) => {
+bridge.onData('device_1', (data) => {
   console.log('Received:', data);
   // Implement your creative logic here!
 });
@@ -76,15 +96,15 @@ The `serial-bridge.js` library provides a simple API for communication:
 const bridge = new SerialBridge();
 
 // Listen for data
-bridge.onData('arduino_1', (data) => {
+bridge.onData('device_1', (data) => {
   console.log(data);
 });
 
 // Send data to Arduino
-bridge.send('arduino_1', 'TOGGLE');
+bridge.send('device_1', 'TOGGLE');
 
 // Monitor connection status
-bridge.onStatus('arduino_1', (status, port) => {
+bridge.onStatus('device_1', (status, port) => {
   console.log(`Status: ${status}, Port: ${port}`);
 });
 ```

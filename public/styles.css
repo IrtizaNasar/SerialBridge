@@ -1063,6 +1063,51 @@ body {
     color: inherit;
 }
 
+.code-snippet-wrapper {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+.code-snippet-wrapper .code-snippet-stripe {
+    margin-bottom: 0;
+    padding-right: 40px;
+    /* Make space for the button */
+}
+
+.copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    /* Hidden by default */
+}
+
+.code-snippet-wrapper:hover .copy-btn {
+    opacity: 1;
+    /* Show on hover */
+}
+
+.copy-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.copy-btn:active {
+    transform: scale(0.95);
+}
+
 .modal-footer-action {
     padding: 0 24px 24px;
 }

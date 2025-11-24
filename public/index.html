@@ -149,25 +149,44 @@
                     Include the socket.io client and our bridge script to start receiving data in your P5.js sketches.
                 </p>
 
-                <pre class="code-snippet-stripe"><code>&lt;script src="http://localhost:3000/socket.io/socket.io.js"&gt;&lt;/script&gt;
-&lt;script src="http://localhost:3000/serial-bridge.js"&gt;&lt;/script&gt;</code></pre>
+                <div class="code-snippet-wrapper">
+                    <pre
+                        class="code-snippet-stripe"><code>&lt;script src="<span class="dynamic-server-url">http://localhost:3000</span>/socket.io/socket.io.js"&gt;&lt;/script&gt;
+&lt;script src="<span class="dynamic-server-url">http://localhost:3000</span>/serial-bridge.js"&gt;&lt;/script&gt;</code></pre>
+                    <button class="copy-btn" onclick="window.copyCode(this)" title="Copy to clipboard">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
 
                 <h3>Use in P5.js</h3>
                 <p>
                     Initialize the bridge and listen for data:
                 </p>
 
-                <pre class="code-snippet-stripe"><code>let bridge;
+                <div class="code-snippet-wrapper">
+                    <pre class="code-snippet-stripe"><code>let bridge;
 
 function setup() {
     createCanvas(400, 400);
     
     bridge = new SerialBridge();
     
-    bridge.onData('arduino_1', (data) => {
+    bridge.onData('device_1', (data) => {
         console.log('Received:', data);
     });
 }</code></pre>
+                    <button class="copy-btn" onclick="window.copyCode(this)" title="Copy to clipboard">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
 
                 <div class="help-link">
                     Need help? Check the <a href="https://github.com/IrtizaNasar/SerialBridge/tree/main/examples"

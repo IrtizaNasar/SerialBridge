@@ -12,21 +12,18 @@
 - [Features](#features)
 - [Why Serial Bridge?](#why-serial-bridge)
 - [Installation](#installation)
-  - [Download Pre-built Application](#download-pre-built-application)
-  - [macOS Setup](#macos-setup)
-  - [Linux Setup](#linux-setup)
-  - [Build from Source](#build-from-source---for-advanced-users)
 - [Quick Start](#quick-start)
 - [API Reference](#api-reference)
-  - [Basic Usage](#basic-usage-most-common)
-  - [Advanced Usage](#advanced-usage-optional)
+- [Session Management](#session-management)
 - [Examples](#examples)
+  - [Bluetooth Setup](#bluetooth-setup)
+- [Project Structure](#project-structure)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
+- [Credits](#credits)
 - [Support](#support)
-
 
 ## Features
 
@@ -197,6 +194,9 @@ Include the client library in your HTML:
 <img width="275" alt="image" src="assets/docs/server-url.png" />
 
 
+> [!TIP]
+> **Quick Setup**: Click **"Usage Guide"** in the app sidebar to see the exact code snippets with the correct port number automatically filled in. You can copy them directly to your project.
+
 Create your sketch:
 
 ```javascript
@@ -210,8 +210,8 @@ function setup() {
     bridge = new SerialBridge(); // Auto-detects URL from socket.io script
     // OR: bridge = new SerialBridge('http://localhost:3000');
 
-  // Listen for data from arduino_1
-  bridge.onData('arduino_1', (data) => {
+  // Listen for data from device_1
+  bridge.onData('device_1', (data) => {
     sensorValue = parseInt(data);
   });
 }
@@ -255,13 +255,13 @@ const bridge = new SerialBridge('http://localhost:3001');
 Receive data from an Arduino connected via the desktop app.
 
 ```javascript
-bridge.onData('arduino_1', (data) => {
+bridge.onData('device_1', (data) => {
   console.log('Received:', data);
 });
 ```
 
 **Parameters:**
-- `arduinoId` (string): The Arduino connection ID (e.g., 'arduino_1')
+- `arduinoId` (string): The Arduino connection ID (e.g., 'device_1')
 - `callback` (function): Function called when data is received
 
 #### `onStatus(arduinoId, callback)`
@@ -269,7 +269,7 @@ bridge.onData('arduino_1', (data) => {
 Monitor connection status changes.
 
 ```javascript
-bridge.onStatus('arduino_1', (status, port) => {
+bridge.onStatus('device_1', (status, port) => {
   console.log(`Status: ${status}, Port: ${port}`);
 });
 ```
@@ -351,7 +351,7 @@ console.log(ports);
 Connect to an Arduino without using the desktop app UI.
 
 ```javascript
-await bridge.connectArduino('arduino_1', '/dev/cu.usbmodem14101', 9600);
+await bridge.connectArduino('device_1', '/dev/cu.usbmodem14101', 9600);
 ```
 
 **Parameters:**
@@ -366,7 +366,7 @@ await bridge.connectArduino('arduino_1', '/dev/cu.usbmodem14101', 9600);
 Disconnect from an Arduino programmatically.
 
 ```javascript
-await bridge.disconnectArduino('arduino_1');
+await bridge.disconnectArduino('device_1');
 ```
 
 **Parameters:**
@@ -430,55 +430,34 @@ Sessions are saved as human-readable JSON files:
 
 ## Examples
 
-The `examples/` directory contains complete working examples:
+The `examples/` directory contains complete working examples for both P5.js and Arduino.
 
-### P5.js Examples
-- **basic-p5js/sketch.js**: Simple data visualization with bar chart and line graph (receive data)
-- **basic-p5js/sketch-ble-control.js**: Interactive LED control via Bluetooth (send & receive data)
-
-### Arduino Sketches
-
-**USB Serial (One-way - Send Only):**
-- **basic-sensor.ino**: Read and send analog sensor data
-  - For Arduino Uno, Mega, Nano (classic), etc.
-  - Sends sensor values to P5.js
-
-**USB Serial (Two-way - Send & Receive):**
-- **interactive-led.ino**: Bidirectional communication with LED control
-  - Sends sensor data AND receives commands from P5.js
-  - Control LED brightness with keyboard input
-  - Example commands: `TOGGLE`, `VALUE:0-9`
-
-**Bluetooth Low Energy (BLE):**
-- **ble-uno-r4.ino**: Arduino Uno R4 WiFi BLE example
-- **ble-nano33.ino**: Arduino Nano 33 BLE example  
-- **ble-esp32.ino**: ESP32 BLE example
-- All BLE examples support **bidirectional communication**
-  - Send sensor data to P5.js
-  - Receive commands from P5.js (LED control, parameters, etc.)
-
-> [!TIP]
-> **Want to control your Arduino from P5.js?** Use the bidirectional examples:
-> - USB: `interactive-led.ino`
-> - Bluetooth: Any of the `ble-*.ino` sketches
->
-> These show how to both send sensor data AND receive commands from your P5.js sketch.
+**See [examples/README.md](examples/README.md) for detailed documentation on:**
+- P5.js visualization examples
+- Arduino sketches (USB Serial & Bluetooth)
+- Bidirectional communication setup
 
 ### Bluetooth Setup
 
-**1. Classic Bluetooth (HC-05/HC-06)**
-- Use for Arduino Uno R3, Mega, etc.
-- Connects via standard Serial Port (COM port).
-- See [Bluetooth Guide](examples/BLUETOOTH_GUIDE.md).
+There are two ways to use Bluetooth with Serial Bridge, depending on your hardware:
 
-**2. Bluetooth Low Energy (BLE) - Arduino Uno R4 WiFi**
-- The Uno R4 WiFi uses BLE, which does not create a COM port.
-- **Serial Bridge now supports BLE directly!**
-- Upload the example sketch: `examples/arduino-sketches/ble-uno-r4.ino`
-- Click the **"Connect BLE"** button in the app.
-- Select your Arduino ("Uno R4 Bridge") from the list.
+**1. Classic Bluetooth (HC-05, HC-06, ESP32 Classic)**
+*   **Hardware:** Arduino Uno/Mega with HC-05 module, or ESP32 in Classic mode.
+*   **How it works:** The operating system creates a virtual Serial Port (COM port) for the device.
+*   **In Serial Bridge:** Treat this exactly like a USB connection.
+    1.  Pair the device in your computer's Bluetooth settings.
+    2.  In Serial Bridge, click **"+ New Connection"**.
+    3.  Select **Type: USB / Serial** (NOT Bluetooth).
+    4.  Select the device's port from the list.
 
-See [examples/README.md](examples/README.md) for detailed documentation.
+**2. Bluetooth Low Energy (BLE) - Arduino Uno R4 WiFi / Nano 33 BLE**
+*   **Hardware:** Newer boards with built-in BLE.
+*   **How it works:** Direct communication without a COM port.
+*   **In Serial Bridge:** Use the dedicated Bluetooth mode.
+    1.  Upload a BLE example sketch (e.g., `ble-uno-r4.ino`).
+    2.  In Serial Bridge, click **"+ New Connection"**.
+    3.  Select **Type: Bluetooth**.
+    4.  Click **"Scan"**, select your device, and click **"Connect"**.
 
 ## Project Structure
 
@@ -522,6 +501,8 @@ await bridge.connectArduino('arduino_1', '/dev/cu.usbmodem14101', 115200);
 The bridge server runs on port 3000 by default. If port 3000 is already in use, the application will automatically try ports 3001-3004.
 
 **The active server URL is always displayed in the application sidebar** under "Server URL". Use this URL when including Socket.IO in your P5.js projects.
+
+
 
 To change the default starting port, modify `serverPort` in `main.js`:
 
@@ -598,11 +579,6 @@ Built with:
 - [Express](https://expressjs.com/) - Web server
 - [Socket.IO](https://socket.io/) - WebSocket communication
 - [SerialPort](https://serialport.io/) - Serial port access
+- [ArduinoBLE](https://www.arduino.cc/reference/en/libraries/arduinoble/) - Bluetooth Low Energy support
 
 Designed for use with [P5.js](https://p5js.org/) - a friendly tool for learning to code and make art.
-
-## Support
-
-- **Documentation**: [examples/README.md](examples/README.md)
-- **Issues**: [GitHub Issues](https://github.com/IrtizaNasar/SerialBridge/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/IrtizaNasar/SerialBridge/discussions)

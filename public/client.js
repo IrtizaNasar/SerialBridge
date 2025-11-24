@@ -614,6 +614,12 @@
         socketioUrlElement.textContent = serverUrl;
     }
 
+    // Update all dynamic server URL spans
+    const dynamicUrlElements = document.querySelectorAll('.dynamic-server-url');
+    dynamicUrlElements.forEach(el => {
+        el.textContent = serverUrl;
+    });
+
     socket.on('connection-status', function (data) {
         console.log('Connection status update:', data);
         updateConnectionStatus(data.id, data.status, data.port);
@@ -1545,6 +1551,38 @@
     window.debugConnections = function () {
         console.log('Current Connections:', connections);
         console.log('Keys:', Object.keys(connections));
+    };
+
+    window.copyCode = async function (btn) {
+        const wrapper = btn.closest('.code-snippet-wrapper');
+        if (!wrapper) return;
+
+        const codeBlock = wrapper.querySelector('code');
+        if (!codeBlock) return;
+
+        const text = codeBlock.innerText;
+
+        try {
+            await navigator.clipboard.writeText(text);
+
+            // Visual feedback
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            `;
+            btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+            btn.style.background = 'rgba(16, 185, 129, 0.1)';
+
+            setTimeout(() => {
+                btn.innerHTML = originalIcon;
+                btn.style.borderColor = '';
+                btn.style.background = '';
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
     };
 
     console.log('Serial Bridge JavaScript loaded successfully');
