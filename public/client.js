@@ -334,6 +334,9 @@
 
     async function setupBLEDevice(device, targetId = null) {
         console.log('Connecting to GATT Server for ' + device.name + '...');
+
+        // Remove existing listener if any (to avoid duplicates on reconnect)
+        device.removeEventListener('gattserverdisconnected', handleDisconnect);
         device.addEventListener('gattserverdisconnected', handleDisconnect);
 
         try {
@@ -346,8 +349,8 @@
             const server = await Promise.race([connectPromise, timeoutPromise]);
 
             // Add a delay to ensure connection is stable before getting services
-            // Increased to 1000ms to fix "GATT Service no longer exists"
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Increased to 1500ms to fix "GATT Service no longer exists"
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
             // Get selected profile
             const profileSelect = document.getElementById('ble_profile_' + targetId);
@@ -357,7 +360,14 @@
             console.log(`Connecting using profile: ${profile.name}`);
 
             console.log('Getting Service...');
-            const service = await server.getPrimaryService(profile.service);
+            let service;
+            try {
+                service = await server.getPrimaryService(profile.service);
+            } catch (err) {
+                console.warn('First attempt to get service failed, retrying...', err);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                service = await server.getPrimaryService(profile.service);
+            }
 
             console.log('Getting Characteristics...');
             const txChar = await service.getCharacteristic(profile.characteristic);
@@ -644,7 +654,7 @@
 
     // Start BLE Scan
     window.scanBLE = async function (id) {
-        console.log('Starting BLE scan for card:', id);
+        console.log('scanBLE called for:', id);
 
         // Prevent rapid re-scanning which can cause Bluetooth API to hang
         const now = Date.now();
@@ -654,9 +664,9 @@
         }
         lastScanTime = now;
 
-        // Reset any previous scanning state
-        if (scanningConnectionId && scanningConnectionId !== id) {
-            console.warn('Another card was scanning, cancelling it first');
+        // Cancel any existing scan for this card or others
+        if (scanningConnectionId) {
+            console.log('Cancelling active scan for', scanningConnectionId);
             if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
             // Wait a bit for cancellation to process
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -669,7 +679,8 @@
 
         if (scanBtn) {
             scanBtn.textContent = 'Scanning...';
-            scanBtn.disabled = true; // Disable button during scan
+            scanBtn.className = 'btn'; // Reset class
+            scanBtn.disabled = false; // Keep enabled so user can click to Rescan
         }
         if (select) {
             select.innerHTML = '<option>Scanning...</option>';
@@ -700,7 +711,7 @@
             console.error('BLE Scan Error:', error);
 
             // Don't show alert for user cancellation
-            if (error.name !== 'NotFoundError' && error.name !== 'NotAllowedError') {
+            if (error.name !== 'NotFoundError' && error.name !== 'NotAllowedError' && !error.message.includes('User cancelled')) {
                 alert('Error scanning for devices: ' + error.message);
             }
 
@@ -713,6 +724,7 @@
             scanningConnectionId = null;
             if (scanBtn) {
                 scanBtn.disabled = false; // Re-enable scan button
+
                 // Reset button text based on whether devices were found
                 const select = document.getElementById('ble_device_' + id);
                 if (select && select.options.length > 1) {
