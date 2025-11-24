@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Serial Bridge - P5.js Example</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- P5.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
+
+    <!-- Socket.IO Client (from the Serial Bridge server) -->
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+
+    <!-- Serial Bridge Client Library -->
+    <script src="http://localhost:3000/serial-bridge.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>🔌 Serial Bridge - P5.js Basic Output Example</h1>
+      <p class="info">Make sure the Serial Bridge app is running!</p>
+
+      <div id="canvas-container"></div>
+
+      <div class="instructions">
+        <h3>What this example does:</h3>
+        <ul>
+          <li>
+            Connects to the Serial Bridge at <code>http://localhost:3000</code>
+          </li>
+          <li>Listens for data from <code>arduino_1</code></li>
+          <li>
+            Sends data to an Arduino to comtrol <code>analogWrite()</code>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Your P5.js sketch -->
+    <script src="sketch.js"></script>
+  </body>
+</html>
