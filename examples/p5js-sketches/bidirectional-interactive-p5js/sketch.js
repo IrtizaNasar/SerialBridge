@@ -14,8 +14,8 @@ function setup() {
     // Create a new Serial Bridge connection
     bridge = new SerialBridge('http://localhost:3000');
 
-    // Listen for data from arduino_1
-    bridge.onData('arduino_1', (data) => {
+    // Listen for data from device_1
+    bridge.onData('device_1', (data) => {
         console.log('Received data:', data);
 
         // Try to parse the data as a number
@@ -32,7 +32,7 @@ function setup() {
     });
 
     // Listen for connection status changes
-    bridge.onStatus('arduino_1', (status, port) => {
+    bridge.onStatus('device_1', (status, port) => {
         connectionStatus = status;
         isConnected = (status === 'connected');
         console.log(`Arduino status: ${status} on ${port}`);
@@ -162,18 +162,18 @@ function drawWaitingMessage() {
     textSize(16);
     text('Waiting for Arduino data...', width / 2, height / 2 - 20);
     textSize(12);
-    text('Make sure Serial Bridge is running and arduino_1 is connected', width / 2, height / 2 + 10);
+    text('Make sure Serial Bridge is running and device_1 is connected', width / 2, height / 2 + 10);
 }
 
 // Optional: Send data to Arduino on key press
 function keyPressed() {
     if (bridge && isConnected) {
         if (key === ' ') {
-            bridge.send('arduino_1', 'TOGGLE')
+            bridge.send('device_1', 'TOGGLE')
                 .then(() => console.log('Sent: TOGGLE'))
                 .catch(err => console.error('Send failed:', err));
         } else if (key >= '0' && key <= '9') {
-            bridge.send('arduino_1', `VALUE:${key}`)
+            bridge.send('device_1', `VALUE:${key}`)
                 .then(() => console.log(`Sent: VALUE:${key}`))
                 .catch(err => console.error('Send failed:', err));
         }

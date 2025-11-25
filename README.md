@@ -521,7 +521,7 @@ The default baud rate is 9600. To use a different rate:
 Serial.begin(115200);
 
 // When connecting programmatically
-await bridge.connectArduino("arduino_1", "/dev/cu.usbmodem14101", 115200);
+await bridge.connectArduino("device_1", "/dev/cu.usbmodem14101", 115200);
 ```
 
 ### Server Port

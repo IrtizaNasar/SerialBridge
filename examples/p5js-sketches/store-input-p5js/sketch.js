@@ -16,8 +16,8 @@ function setup() {
     // Connect to Serial Bridge
     bridge = new SerialBridge();
 
-    // Listen for data from arduino_1
-    bridge.onData('arduino_1', (data) => {
+    // Listen for data from device_1
+    bridge.onData('device_1', (data) => {
         console.log(data);
         // Parse the incoming value
         sensorValue = parseInt(data);
@@ -37,7 +37,7 @@ function setup() {
     });
 
     // Listen for connection status changes
-    bridge.onStatus('arduino_1', (status, port) => {
+    bridge.onStatus('device_1', (status, port) => {
         connectionStatus = status;
         isConnected = (status === 'connected');
         console.log(`Arduino status: ${status} on ${port}`);
@@ -81,7 +81,7 @@ function draw() {
     }
     else {
         textSize(12);
-        text('Make sure Serial Bridge is running and arduino_1 is connected', width / 2, height / 2 + 10);
+        text('Make sure Serial Bridge is running and device_1 is connected', width / 2, height / 2 + 10);
     }
 }
 

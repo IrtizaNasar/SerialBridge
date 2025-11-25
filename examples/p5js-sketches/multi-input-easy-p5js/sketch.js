@@ -14,9 +14,9 @@ function setup() {
     // Connect to Serial Bridge
     bridge = new SerialBridge(); // Auto-detects URL from socket.io script
 
-    // Listen for data from arduino_1
+    // Listen for data from device_1
     //This is an event listener that runs every time new data arrives.
-    bridge.onData('arduino_1', (data) => {
+    bridge.onData('device_1', (data) => {
         // Console log the raw data as it arrives
         console.log("Raw data received:", data);
 
@@ -35,7 +35,7 @@ function setup() {
     });
 
     // Listen for connection status changes
-    bridge.onStatus('arduino_1', (status, port) => {
+    bridge.onStatus('device_1', (status, port) => {
         connectionStatus = status;
         isConnected = (status === 'connected');
         console.log(`Arduino status: ${status} on ${port}`);
@@ -72,7 +72,7 @@ function draw() {
     }
     else {
         textSize(12);
-        text('Make sure Serial Bridge is running and arduino_1 is connected', width / 2, height / 2 + 10);
+        text('Make sure Serial Bridge is running and device_1 is connected', width / 2, height / 2 + 10);
     }
 }
 

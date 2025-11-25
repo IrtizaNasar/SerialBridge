@@ -9,8 +9,8 @@ function setup() {
     bridge = new SerialBridge(); // Auto-detects URL from socket.io script
     // OR: bridge = new SerialBridge('http://localhost:3000');
 
-    // Listen for data from arduino_1
-    bridge.onData('arduino_1', (data) => {
+    // Listen for data from device_1
+    bridge.onData('device_1', (data) => {
         sensorValue = parseInt(data);
     });
 }

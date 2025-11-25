@@ -9,7 +9,7 @@ This folder contains examples demonstrating how to use the Serial Bridge with P5
 **How to use:**
 
 1. Start the Serial Bridge desktop app
-2. Add a connection with ID `arduino_1`
+2. Add a connection with ID `device_1`
 3. Upload one of the Arduino sketches to your board
 4. Open `examples/'your p5js example folder'/index.html` in your browser
 5. Observe the real-time visualization
@@ -21,7 +21,7 @@ A simple P5.js sketch that visualizes data from an Arduino in real-time as a cir
 **Features:**
 
 - Connects to Serial Bridge
-- Receives data from `arduino_1`
+- Receives data from `device_1`
 - Displays data as a circle
 
 #### `/basic-output-p5js/`
@@ -31,7 +31,7 @@ A simple P5.js sketch that sends mouseX data to an Arduino in real-time to contr
 **Features:**
 
 - Connects to Serial Bridge
-- Send data to `arduino_1`
+- Send data to `device_1`
 - Uses mouseX to control LED brightness
 
 #### `/multi-input-easy-p5js/`
@@ -41,7 +41,7 @@ A simple P5.js sketch that visualizes two sets of values from an Arduino in real
 **Features:**
 
 - Connects to Serial Bridge
-- Receives data from `arduino_1`
+- Receives data from `device_1`
 - Splits the data into two values
 - Displays one set of data as a circle
 - Displays the second set of data as a square
@@ -53,7 +53,7 @@ A P5.js sketch that visualizes an array values from an Arduino in real-time.
 **Features:**
 
 - Connects to Serial Bridge
-- Receives data from `arduino_1`
+- Receives data from `device_1`
 - Splits the data into multiple values
 - Displays one set of data as a circle
 - Displays the second set of data as a square
@@ -67,7 +67,7 @@ A simple P5.js sketch that visualizes data from an Arduino in real-time as a cir
 **Features:**
 
 - Connects to Serial Bridge
-- Receives data from `arduino_1`
+- Receives data from `device_1`
 - Displays data as a circle
 - Stores data into a JSON object
 - Svaes JSON file on keypress
@@ -79,7 +79,7 @@ A P5.js sketch that visualizes multiple data inputs from an Arduino in real-time
 **Features:**
 
 - Connects to Serial Bridge
-- Receives data from `arduino_1`
+- Receives data from `device_1`
 - Displays data as a circle
 - Stores data into a JSON array as multiple objects
 - Saves JSON file on keypress
@@ -91,7 +91,7 @@ A simple P5.js sketch that visualizes data from an Arduino in real-time and send
 **Features:**
 
 - Connects to Serial Bridge
-- Receives data from `arduino_1`
+- Receives data from `device_1`
 - Displays data as a bar chart and line graph
 - Shows connection status indicator
 
@@ -187,7 +187,7 @@ Example Arduino sketches compatible with the Bridge.
 // In your sketch.js
 let bridge = new SerialBridge(); // Auto-detects URL
 
-bridge.onData("arduino_1", (data) => {
+bridge.onData("device_1", (data) => {
   console.log("Received:", data);
   // Implement your creative logic here!
 });
@@ -204,16 +204,16 @@ The `serial-bridge.js` library provides a simple API for communication:
 const bridge = new SerialBridge();
 
 // Listen for data
-bridge.onData("arduino_1", (data) => {
+bridge.onData("device_1", (data) => {
   console.log(data);
 });
 
 // Send data to Arduino
 // Send data to Arduino
-bridge.send("arduino_1", "TOGGLE");
+bridge.send("device_1", "TOGGLE");
 
 // Monitor connection status
-bridge.onStatus("arduino_1", (status, port) => {
+bridge.onStatus("device_1", (status, port) => {
   console.log(`Status: ${status}, Port: ${port}`);
 });
 ```
@@ -230,10 +230,10 @@ bridge.onData("*", (data, id) => {
 const ports = await bridge.getPorts();
 
 // Connect an Arduino programmatically
-await bridge.connectArduino("arduino_1", "/dev/cu.usbmodem14101", 9600);
+await bridge.connectArduino("device_1", "/dev/cu.usbmodem14101", 9600);
 
 // Disconnect
-await bridge.disconnectArduino("arduino_1");
+await bridge.disconnectArduino("device_1");
 ```
 
 ## 🐻 Creating Custom Examples
@@ -248,7 +248,7 @@ await bridge.disconnectArduino("arduino_1");
 - **Baud Rate:** Ensure Arduino baud rate (default 9600) matches the Bridge connection.
 - **Data Format:** Send simple values (numbers or short strings) for best performance.
 - **Update Rate:** Avoid flooding the serial port; a 50-100ms delay in the Arduino loop is recommended.
-- **Multiple Arduinos:** Use unique IDs like `arduino_1`, `arduino_2`, etc.
+- **Multiple Arduinos:** Use unique IDs like `device_1`, `arduino_2`, etc.
 - **Debugging:** Use the browser console and Bridge app logs to troubleshoot.
 
 ## 🐛 Troubleshooting

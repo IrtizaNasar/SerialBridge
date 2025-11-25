@@ -13,13 +13,13 @@ function setup() {
     bridge = new SerialBridge(); // Auto-detects URL from socket.io script
     // OR: bridge = new SerialBridge('http://localhost:3000');
 
-    // Listen for data from arduino_1
-    bridge.onData('arduino_1', (data) => {
+    // Listen for data from device_1
+    bridge.onData('device_1', (data) => {
         sensorValue = parseInt(data);
     });
 
     // Listen for connection status changes
-    bridge.onStatus('arduino_1', (status, port) => {
+    bridge.onStatus('device_1', (status, port) => {
         connectionStatus = status;
         isConnected = (status === 'connected');
         console.log(`Arduino status: ${status} on ${port}`);
@@ -53,6 +53,6 @@ function draw() {
     }
     else {
         textSize(12);
-        text('Make sure Serial Bridge is running and arduino_1 is connected', width / 2, height / 2 + 10);
+        text('Make sure Serial Bridge is running and device_1 is connected', width / 2, height / 2 + 10);
     }
 }

@@ -12,7 +12,7 @@ function setup() {
     bridge = new SerialBridge('http://localhost:3000');
 
     // Listen for connection status
-    bridge.onStatus('arduino_1', (status) => {
+    bridge.onStatus('device_1', (status) => {
         isConnected = (status === 'connected');
         console.log(`Arduino status: ${status}`);
     });
@@ -61,7 +61,7 @@ function mouseMoved() {
         brightness = Math.round(brightness);
 
         // Send to Arduino
-        bridge.send('arduino_1', brightness.toString());
+        bridge.send('device_1', brightness.toString());
 
         // Console log what we're sending
         console.log(`Sending brightness: ${brightness}`);
