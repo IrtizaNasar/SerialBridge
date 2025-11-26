@@ -41,6 +41,7 @@
 - [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
 - [Contributing](#contributing)
 - [License](#license)
+- [Contributors](#contributors)
 - [Credits](#credits)
 - [Support](#support)
 
@@ -790,6 +791,12 @@ npm start
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details
+
+## Contributors
+
+- **[IrtizaNasar](https://github.com/IrtizaNasar)** - Lead Developer & Maintainer
+- **[j3nsykes](https://github.com/j3nsykes)** - Additional Examples & Documentation
+
 
 ## Credits
 
