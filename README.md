@@ -4,7 +4,7 @@
 
 <h1 align="center">Serial Bridge</h1>
 
-<p align="center"> A desktop application that creates a bridge between serial devices (Arduino, microcontrollers) and web-based creative coding environments like P5.js. Connect multiple devices simultaneously and access their serial data through a simple JavaScript API.</p>
+<p align="center"> A desktop application that bridges <b>USB and Bluetooth</b> devices (Arduino, Muse 2, microcontrollers) to web-based creative coding environments like P5.js. Connect multiple devices simultaneously and access their data through a simple JavaScript API.</p>
 
 
 
@@ -25,6 +25,9 @@
 - [Features](#features)
 - [Why Serial Bridge?](#why-serial-bridge)
 - [Installation](#installation)
+  - [macOS](#macos-setup)
+  - [Windows](#windows-setup)
+  - [Linux](#linux-setup)
 - [Quick Start](#quick-start)
 - [Device Profiles](#device-profiles)
   - [Muse 2 Support](#muse-2-support)
@@ -95,31 +98,47 @@ Since this app is not signed by Apple, you may see a warning that it "is damaged
    ```
 3. You can now open the app normally.
 
+### Windows Setup
+
+When you run the installer or executable for the first time, you may see a blue "Windows protected your PC" popup (Microsoft SmartScreen). This happens because the app is not code-signed (which costs hundreds of dollars/year).
+
+1.  Click **"More info"**.
+2.  Click **"Run anyway"**.
+
+**Drivers:**
+Most modern Windows systems (10/11) automatically install drivers for Arduino/ESP32. If your device doesn't show up:
+- Install the **CH340 Driver** (common for clones).
+- Install the **CP210x Driver** (common for ESP32).
+
 ### Linux Setup
 
 If you are using the `.AppImage` on Linux (especially Ubuntu 22.04+), you may need to perform a few one-time setup steps.
 
 **1. Make Executable**
-
+Right-click the `.AppImage` file -> Properties -> Permissions -> Allow executing file as program.
+Or via terminal:
 ```bash
 chmod a+x Serial-Bridge-*.AppImage
 ```
 
 **2. Install libfuse2 (Ubuntu 22.04+)**
 AppImages require FUSE to run.
-
 ```bash
 sudo apt install libfuse2
 ```
 
 **3. Serial Port Permissions**
-To access serial ports without `sudo`, add your user to the `dialout` group (recommended permanent fix):
-
+To access USB devices without `sudo`, add your user to the `dialout` group:
 ```bash
 sudo usermod -a -G dialout $USER
 ```
+*Log out and log back in for this to take effect.*
 
-_Log out and log back in for this to take effect._
+**4. Bluetooth Support**
+Ensure your system's Bluetooth service is running. We automatically enable Web Bluetooth, but if you encounter issues, try running the app with the flag:
+```bash
+./Serial-Bridge-*.AppImage --enable-features=WebBluetooth
+```
 
 **4. Sandbox Issues (Ubuntu 24.04+)**
 If you see a "SUID sandbox helper binary" error, you can either:
