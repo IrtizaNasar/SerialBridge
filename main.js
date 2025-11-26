@@ -12,6 +12,12 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+
+// Enable Web Bluetooth on Linux if not already enabled
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('enable-features', 'WebBluetooth');
+}
+
 const express = require('express');
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
