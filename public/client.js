@@ -23,6 +23,14 @@
 
     const socket = io();
 
+    // Helper to resize input based on content
+    window.resizeInput = function (el) {
+        if (!el) return; // Safety check
+        // Reset width to min to calculate scrollWidth correctly
+        el.style.width = '1ch';
+        el.style.width = (el.scrollWidth) + 'px';
+    };
+
     // ===== CONFIGURATION =====
     // BLE UART Service UUIDs (Nordic UART Service standard)
     // BLE UART Service UUIDs (Nordic UART Service standard)
@@ -80,6 +88,13 @@
         } else {
             console.warn('IPC Renderer not available. BLE selection might fail.');
         }
+
+        // Prevent default context menu, except in code snippets (for copying)
+        document.addEventListener('contextmenu', event => {
+            if (!event.target.closest('.code-snippet-wrapper')) {
+                event.preventDefault();
+            }
+        });
 
         // Drag and Drop Container Listeners
         const connectionsDiv = document.getElementById('connections');
@@ -361,6 +376,14 @@
         device.addEventListener('gattserverdisconnected', handleDisconnect);
 
         try {
+            // Ensure clean state
+            if (device.gatt.connected) {
+                console.log('Device already connected, disconnecting first...');
+                device.gatt.disconnect();
+                // Wait for disconnect to complete
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
             // Add timeout for connection
             const connectPromise = device.gatt.connect();
             const timeoutPromise = new Promise((_, reject) =>
@@ -1012,6 +1035,7 @@
         if (idInput) {
             idInput.id = 'id_input_' + newId;
             idInput.value = newId; // Update value too
+            window.resizeInput(idInput); // Trigger resize
         }
 
         const connectBtn = document.getElementById('connect_' + oldId);
@@ -1028,14 +1052,31 @@
             }
         }
 
-        const removeBtn = card ? card.querySelector('[onclick*="removeBLE"]') : null;
+        // Update Remove Button (handles both BLE and Serial)
+        const removeBtn = card ? card.querySelector('.btn-remove, [onclick*="removeBLE"], [onclick*="removeConnection"]') : null;
         if (removeBtn) {
-            removeBtn.setAttribute('onclick', `window.removeBLE('${newId}')`);
+            if (connections[newId].type === 'ble') {
+                removeBtn.setAttribute('onclick', `window.removeBLE('${newId}')`);
+            } else {
+                removeBtn.setAttribute('onclick', `window.removeConnection('${newId}')`);
+            }
         }
 
         const editBtn = card ? card.querySelector('[onclick*="editConnectionId"]') : null;
         if (editBtn) {
             editBtn.setAttribute('onclick', `window.editConnectionId('${newId}')`);
+        }
+
+        // Update ID group container click handler
+        const idGroup = card ? card.querySelector('.connection-id-group') : null;
+        if (idGroup) {
+            idGroup.setAttribute('onclick', `window.editConnectionId('${newId}')`);
+        }
+
+        // Update collapse button
+        const collapseBtn = card ? card.querySelector('.btn-collapse') : null;
+        if (collapseBtn) {
+            collapseBtn.setAttribute('onclick', `window.toggleCard('${newId}')`);
         }
 
         const dataPreview = document.getElementById('data_' + oldId);
@@ -1048,16 +1089,49 @@
             portSelect.setAttribute('name', 'port_' + newId);
         }
 
-        // Update standard onclick handlers if they exist (for non-BLE)
-        if (card && connections[newId].type !== 'ble') {
+        // Update Content Wrapper and Toggles
+        const contentWrapper = document.getElementById('content_wrapper_' + oldId);
+        if (contentWrapper) contentWrapper.id = 'content_wrapper_' + newId;
+
+        const toggleSerial = document.getElementById('toggle_serial_' + oldId);
+        if (toggleSerial) {
+            toggleSerial.id = 'toggle_serial_' + newId;
+            toggleSerial.setAttribute('onclick', `window.toggleConnectionType('${newId}', 'serial')`);
+        }
+
+        const toggleBle = document.getElementById('toggle_ble_' + oldId);
+        if (toggleBle) {
+            toggleBle.id = 'toggle_ble_' + newId;
+            toggleBle.setAttribute('onclick', `window.toggleConnectionType('${newId}', 'ble')`);
+        }
+
+        const contentDiv = document.getElementById('content_' + oldId);
+        if (contentDiv) contentDiv.id = 'content_' + newId;
+
+        // Update BLE Profile Select
+        const profileSelect = document.getElementById('ble_profile_' + oldId);
+        if (profileSelect) {
+            profileSelect.id = 'ble_profile_' + newId;
+            profileSelect.setAttribute('onchange', `window.handleProfileChange('${newId}')`);
+        }
+
+        // Update Serial specific elements
+        if (connections[newId].type !== 'ble') {
             const refreshBtn = card.querySelector('[onclick*="refreshPorts"]');
             if (refreshBtn) refreshBtn.setAttribute('onclick', 'window.refreshPorts(\'' + newId + '\')');
 
             const toggleBtn = card.querySelector('[onclick*="toggleConnection"]');
             if (toggleBtn) toggleBtn.setAttribute('onclick', 'window.toggleConnection(\'' + newId + '\')');
 
-            const removeBtnSerial = card.querySelector('[onclick*="removeConnection"]');
-            if (removeBtnSerial) removeBtnSerial.setAttribute('onclick', 'window.removeConnection(\'' + newId + '\')');
+            const baudSelect = document.getElementById('baud_' + oldId);
+            if (baudSelect) baudSelect.id = 'baud_' + newId;
+        }
+
+        // Update Pause Button
+        const pauseBtn = document.getElementById('pause_' + oldId);
+        if (pauseBtn) {
+            pauseBtn.id = 'pause_' + newId;
+            pauseBtn.setAttribute('onclick', `window.togglePause('${newId}')`);
         }
 
         console.log('Renamed connection from ' + oldId + ' to ' + newId);
@@ -1069,6 +1143,10 @@
     window.editConnectionId = function (id) {
         const idInput = document.getElementById('id_input_' + id);
         const oldValue = idInput.value;
+
+        // Add editing class to container
+        const container = idInput.closest('.connection-id-group');
+        if (container) container.classList.add('editing');
 
         idInput.disabled = false;
         idInput.focus();
@@ -1082,6 +1160,11 @@
             } else if (e.key === 'Escape') {
                 idInput.value = oldValue;
                 idInput.disabled = true;
+
+                // Remove editing class from container
+                const container = idInput.closest('.connection-id-group');
+                if (container) container.classList.remove('editing');
+
                 // Clear handlers
                 idInput.onkeydown = null;
                 idInput.onblur = null;
@@ -1097,6 +1180,11 @@
                 }
             }
             idInput.disabled = true;
+
+            // Remove editing class from container
+            const container = idInput.closest('.connection-id-group');
+            if (container) container.classList.remove('editing');
+
             // Clear handlers to prevent memory leaks or weird states
             idInput.onkeydown = null;
             idInput.onblur = null;
@@ -1157,15 +1245,29 @@
             connectionCard.classList.remove('dragging');
         });
 
+        const isConnected = connections[id].status === 'connected';
+        const statusClass = isConnected ? 'status-connected' : 'status-disconnected';
+        const statusText = isConnected ? 'Connected' : 'Disconnected';
+
         // Common Header
         let html = `
             <div class="card-header">
                 <div class="card-title">
                     <input type="text" class="card-title-input" value="${connections[id].name}" onchange="window.updateConnectionName('${id}', this.value)">
-                    <div class="connection-id-group">
+                    <div class="connection-id-group" onclick="window.editConnectionId('${id}')" title="Click to Edit ID">
                         <label class="id-label">ID:</label>
-                        <input type="text" class="connection-id-input" id="id_input_${id}" value="${id}" disabled>
-                        <button class="btn-edit-id" onclick="window.editConnectionId('${id}')" title="Edit Connection ID">Edit</button>
+                        <input type="text" 
+                               class="connection-id-input" 
+                               id="id_input_${id}" 
+                               value="${id}" 
+                               disabled
+                               oninput="window.resizeInput(this)">
+                        <button class="btn-edit-id">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 <div class="card-controls">
@@ -1198,8 +1300,9 @@
         connectionCard.innerHTML = html;
         connectionsDiv.appendChild(connectionCard);
 
-        connectionCard.innerHTML = html;
-        connectionsDiv.appendChild(connectionCard);
+        // Initialize input width
+        const idInput = document.getElementById('id_input_' + id);
+        if (idInput) window.resizeInput(idInput);
 
         // Populate the form with serial content by default
         const contentDiv = document.getElementById('content_' + id);
@@ -1965,6 +2068,10 @@
 
                         connectionCard.innerHTML = html;
                         connectionsDiv.appendChild(connectionCard);
+
+                        // Initialize input width
+                        const idInput = document.getElementById('id_input_' + id);
+                        if (idInput) window.resizeInput(idInput);
 
                         // If serial type, update port selection
                         if (connConfig.type === 'serial' && connConfig.port) {
