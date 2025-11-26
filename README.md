@@ -5,7 +5,20 @@
 <h1 align="center">Serial Bridge</h1>
 
 <p align="center"> A desktop application that creates a bridge between serial devices (Arduino, microcontrollers) and web-based creative coding environments like P5.js. Connect multiple devices simultaneously and access their serial data through a simple JavaScript API.</p>
+
+
+
 <img width="1412" alt="image" src="assets/docs/main-interface.png" />
+
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/irti">
+    <img src="assets/docs/bmc-button.png" alt="Buy Me A Coffee" width="200" />
+  </a>
+  <br>
+  <b>Support the Project</b>
+</p>
+<br>
 
 ## Table of Contents
 
@@ -13,6 +26,7 @@
 - [Why Serial Bridge?](#why-serial-bridge)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Device Profiles](#device-profiles)
 - [API Reference](#api-reference)
 - [Session Management](#session-management)
 - [Examples](#examples)
@@ -20,6 +34,7 @@
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
+- [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
 - [Contributing](#contributing)
 - [License](#license)
 - [Credits](#credits)
@@ -35,9 +50,14 @@
 - **Cross-Platform**: Works on macOS, Windows, and Linux
 - **WebSocket Communication**: Fast bidirectional communication
 - **Bluetooth Support**: Connect via USB Serial or Bluetooth Low Energy (BLE)
+- **Device Profiles**: Built-in support for complex sensors like Muse 2
 - **Editable Connection IDs**: Customize connection identifiers for better project organization
 
   ![Serial-Bridge](https://github.com/user-attachments/assets/371df7c8-a4e4-421f-90e5-00276cf921d6)
+
+
+
+
 
 ## Why Serial Bridge?
 
@@ -231,6 +251,54 @@ function draw() {
 ```
 
 ![Screen Recording 2025-11-20 at 00 35 31](https://github.com/user-attachments/assets/963fad9d-8d0d-466d-8596-6bce072cb072)
+
+## Device Profiles
+
+Serial Bridge includes built-in profiles for specific hardware devices. These profiles automatically handle connection protocols, data parsing, and formatting, making it effortless to work with complex sensors.
+
+### Muse 2 Support
+
+The application features robust support for the **Muse 2** EEG headband. When connected via Bluetooth using the Muse profile, the bridge automatically decodes the raw data stream and provides structured access to:
+
+- **EEG Data**: Raw microvolt values for all 4 channels (TP9, AF7, AF8, TP10).
+- **PPG Data**: Photoplethysmography data from the optical heart rate sensor (3 channels: Ambient, IR, Red).
+- **Accelerometer**: 3-axis movement data (X, Y, Z).
+- **Gyroscope**: 3-axis rotation data (X, Y, Z).
+
+This allows researchers and developers to build biofeedback applications without worrying about low-level Bluetooth communication or packet decoding.
+
+#### How to Connect
+
+1. Put your Muse 2 headband into pairing mode (lights oscillating).
+2. In Serial Bridge, click **"+ New Connection"**.
+3. Select **Bluetooth**.
+4. **Important**: In the Device Profile dropdown, select **"Muse"**.
+5. Click **"Scan"**, select your Muse device from the list, and click **"Connect"**.
+
+#### Accessing Data
+
+When using the Muse profile, data is streamed as JSON objects. You may need to parse the data if it arrives as a string.
+
+```javascript
+bridge.onData("device_1", (data) => {
+    // Parse if string, otherwise use directly
+    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+    if (parsed.type === 'eeg') {
+        // Raw EEG values (microvolts)
+        console.log("EEG:", parsed.data.tp9, parsed.data.af7, parsed.data.af8, parsed.data.tp10);
+    } else if (parsed.type === 'ppg') {
+        // PPG sensor values
+        console.log("PPG:", parsed.data.ch1, parsed.data.ch2, parsed.data.ch3);
+    } else if (parsed.type === 'accelerometer') {
+        // Movement data
+        console.log("Accel:", parsed.data.x, parsed.data.y, parsed.data.z);
+    } else if (parsed.type === 'gyro') {
+        // Rotation data
+        console.log("Gyro:", parsed.data.x, parsed.data.y, parsed.data.z);
+    }
+});
+```
 
 ## API Reference
 
@@ -572,6 +640,94 @@ let serverPort = 3000; // Change this to your preferred starting port
 - Check Arduino ID matches (case-sensitive)
 - Test with Arduino IDE Serial Monitor first
 
+## Data Smoothing (For Beginners)
+
+Sensors are noisy. They jitter, spike, and glitch. The Serial Bridge Client Library includes built-in functions to fix this without complex math.
+
+### 1. `bridge.smooth(id, value, factor)`
+*   **Best for:** Potentiometers, Light Sensors, Joysticks.
+*   **Math:** Exponential Moving Average (EMA).
+*   **What it does:** Makes values feel "heavy" and fluid, like a volume knob with resistance.
+
+**Parameters:**
+*   `id`: A unique name (string) to remember this sensor's history (e.g., "pot1").
+*   `value`: The raw number coming from the sensor right now.
+*   `factor`: How much smoothing to apply (0.0 to 1.0).
+    *   `0.1`: Very snappy (little smoothing).
+    *   `0.9`: Very slow/smooth (heavy smoothing).
+
+```javascript
+let cleanVal = bridge.smooth("pot1", rawValue, 0.8);
+```
+
+### 2. `bridge.stable(id, value, frames)`
+*   **Best for:** Ultrasonic Sensors, IR Distance Sensors.
+*   **Math:** Median Filter.
+*   **What it does:** Ignores "glitches" and massive spikes by waiting to be sure the value is real.
+
+**Parameters:**
+*   `id`: A unique name (string) to remember this sensor's history.
+*   `value`: The raw number coming from the sensor right now.
+*   `frames`: How many recent values to look at (default: 5). Higher = more stable but slower.
+
+```javascript
+let dist = bridge.stable("ultra1", rawValue, 5);
+```
+
+### 3. `bridge.kalman(id, value, R, Q)`
+*   **Best for:** Tracking moving objects (Advanced).
+*   **Math:** 1D Kalman Filter.
+*   **What it does:** Predicts movement to reduce noise while keeping speed.
+
+**Parameters:**
+*   `id`: A unique name (string) to remember this sensor's history.
+*   `value`: The raw number coming from the sensor right now.
+*   `R`: Measurement Noise (default: 1). Higher = Trust the sensor less (smoother).
+*   `Q`: Process Noise (default: 0.1). Higher = Expect more movement (faster).
+
+```javascript
+let pos = bridge.kalman("hand", rawValue, 1, 0.1);
+```
+
+### Example: Single Sensor
+If you only have one sensor sending a number (e.g., `"1023"`):
+
+```javascript
+bridge.onData("device_1", (data) => {
+    // 1. Convert text to number
+    let rawVal = Number(data);
+    
+    // 2. Smooth it
+    let smoothVal = bridge.smooth("mySensor", rawVal, 0.8);
+    
+    // 3. Use it
+    circle(width/2, height/2, smoothVal);
+});
+```
+
+### Example: Handling Multiple Sensors
+If your Arduino sends multiple values (e.g., `"1023,512"`), you must use a **unique ID** for each one so the bridge doesn't mix them up.
+
+```javascript
+bridge.onData("device_1", (data) => {
+    // 1. Split the text into two numbers
+    let values = split(data, ","); 
+    
+    let rawPot = Number(values[0]);   // 1023
+    let rawLight = Number(values[1]); // 512
+
+    // 2. Smooth them SEPARATELY using unique IDs ("myPot", "myLight")
+    let smoothPot = bridge.smooth("myPot", rawPot, 0.9);
+    let smoothLight = bridge.smooth("myLight", rawLight, 0.9);
+
+    // 3. Use the clean values
+    circle(100, 100, smoothPot);
+    rect(200, 200, smoothLight, 50);
+});
+```
+
+---
+
 ## Contributing
 
 Contributions are welcome! This project aims to be beginner-friendly and well-documented.
@@ -615,3 +771,11 @@ Built with:
 - [ArduinoBLE](https://www.arduino.cc/reference/en/libraries/arduinoble/) - Bluetooth Low Energy support
 
 Designed for use with [P5.js](https://p5js.org/) - a friendly tool for learning to code and make art.
+
+## Support
+
+If you found this project helpful, consider buying me a coffee!
+
+<a href="https://www.buymeacoffee.com/irti">
+  <img src="assets/docs/bmc-button.png" alt="Buy Me A Coffee" width="200" />
+</a>
