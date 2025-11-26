@@ -579,7 +579,7 @@ SerialBridge/
 │   ├── client.js           # UI logic and connection management
 │   └── serial-bridge.js    # Client library for P5.js projects
 ├── examples/               # Example projects & Arduino sketches
-│   ├── basic-p5js/         # P5.js visualization example
+│   ├── p5js-sketches/      # P5.js visualization examples
 │   └── arduino-sketches/   # Arduino code examples
 └── assets/                 # Application icons & documentation images
 ```
