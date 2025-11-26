@@ -27,6 +27,7 @@
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Device Profiles](#device-profiles)
+  - [Muse 2 Support](#muse-2-support)
 - [API Reference](#api-reference)
 - [Session Management](#session-management)
 - [Examples](#examples)
@@ -459,7 +460,18 @@ await bridge.disconnectArduino('device_1');
 
 ## Session Management
 
-Serial Bridge allows you to save and load your connection configurations, making it easy to set up the same devices across different sessions or machines.
+Serial Bridge allows you to save and load your connection configurations. This is perfect for complex setups with multiple devices or specific settings (like baud rates and device profiles).
+
+1.  **Save Session**: Click "Save Session" in the sidebar to download a `.json` file with your current configuration.
+2.  **Load Session**: Click "Load Session" and select your `.json` file to restore your workspace.
+
+> [!NOTE]
+> **Bluetooth Reconnection**: Due to browser security protections (Web Bluetooth API), applications cannot automatically reconnect to Bluetooth devices without a user gesture.
+>
+> When loading a session with Bluetooth devices:
+> 1. The device card will appear with your saved settings (Name, Profile, etc.).
+> 2. You must click **Scan** and select your device again to re-establish the connection.
+> 3. The app will automatically filter for the correct device type to make this quick.
 
 ### Saving a Session
 
