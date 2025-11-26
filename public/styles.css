@@ -1054,6 +1054,8 @@ body {
     overflow-x: auto;
     line-height: 1.5;
     margin: 0;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .code-snippet-stripe code {

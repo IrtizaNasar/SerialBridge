@@ -1826,6 +1826,7 @@
             } else if (conn.type === 'ble') {
                 config.connections[id].deviceId = conn.deviceId;
                 config.connections[id].deviceName = conn.deviceName;
+                config.connections[id].profile = conn.profile;
             }
         }
 
@@ -1894,7 +1895,8 @@
                             port: connConfig.port || null,
                             baudRate: connConfig.baudRate || 9600,
                             deviceId: connConfig.deviceId || null,
-                            deviceName: connConfig.deviceName || null
+                            deviceName: connConfig.deviceName || null,
+                            profile: connConfig.profile || 'generic_uart'
                         };
 
                         // Create UI card
@@ -1988,6 +1990,14 @@
                             const baudSelect = document.getElementById('baud_' + id);
                             if (baudSelect) {
                                 baudSelect.value = connConfig.baudRate;
+                            }
+                        }
+
+                        // If BLE type, update profile selection
+                        if (connConfig.type === 'ble' && connConfig.profile) {
+                            const profileSelect = document.getElementById('ble_profile_' + id);
+                            if (profileSelect) {
+                                profileSelect.value = connConfig.profile;
                             }
                         }
                     }

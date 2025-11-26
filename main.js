@@ -285,6 +285,35 @@ function createWindow() {
         icon: path.join(__dirname, 'public/logo.png')
     });
 
+    // Add basic context menu (Copy/Paste/Inspect)
+    const { Menu, MenuItem } = require('electron');
+    mainWindow.webContents.on('context-menu', (event, params) => {
+        const menu = new Menu();
+
+        // Add Copy if text is selected
+        if (params.selectionText) {
+            menu.append(new MenuItem({ label: 'Copy', role: 'copy' }));
+        }
+
+        // Add Paste if editable
+        if (params.isEditable) {
+            menu.append(new MenuItem({ label: 'Paste', role: 'paste' }));
+        }
+
+        // Add Inspect Element for debugging (optional, but helpful)
+        menu.append(new MenuItem({ type: 'separator' }));
+        menu.append(new MenuItem({
+            label: 'Inspect Element',
+            click: () => {
+                mainWindow.webContents.inspectElement(params.x, params.y);
+            }
+        }));
+
+        if (menu.items.length > 0) {
+            menu.popup();
+        }
+    });
+
     // Handle external links
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('http:') || url.startsWith('https:')) {
