@@ -38,6 +38,11 @@ class SerialBridge {
         this.statusHandlers = new Map();
         this.connected = false;
 
+        // Smoothing State
+        this.smoothState = new Map();
+        this.stableState = new Map();
+        this.kalmanState = new Map();
+
         this.connect();
     }
 
@@ -217,6 +222,94 @@ class SerialBridge {
             this.socket.disconnect();
             this.socket = null;
         }
+    }
+
+    // ==========================================
+    // DATA SMOOTHING API (Beginner Friendly)
+    // ==========================================
+
+    /**
+     * Smooths a value using Exponential Moving Average (EMA).
+     * Great for making jittery sensors (pots, light sensors) feel "heavy" and fluid.
+     * 
+     * @param {string} id - Unique ID for this sensor (e.g., "pot1")
+     * @param {number} val - The raw new value
+     * @param {number} factor - Smoothing factor (0.0 - 1.0). 
+     *                          0.1 = Very snappy (little smoothing)
+     *                          0.9 = Very slow/smooth (heavy smoothing)
+     * @returns {number} The smoothed value
+     */
+    smooth(id, val, factor = 0.8) {
+        if (!this.smoothState.has(id)) {
+            this.smoothState.set(id, val);
+            return val;
+        }
+
+        const prev = this.smoothState.get(id);
+        const smoothed = (prev * factor) + (val * (1.0 - factor));
+        this.smoothState.set(id, smoothed);
+        return smoothed;
+    }
+
+    /**
+     * Stabilizes a value using a Median Filter.
+     * Great for removing "glitches" or massive spikes (like Ultrasonic sensors).
+     * 
+     * @param {string} id - Unique ID for this sensor
+     * @param {number} val - The raw new value
+     * @param {number} frames - How many recent frames to look at (default: 5)
+     * @returns {number} The stable (median) value
+     */
+    stable(id, val, frames = 5) {
+        if (!this.stableState.has(id)) {
+            this.stableState.set(id, []);
+        }
+
+        const buffer = this.stableState.get(id);
+        buffer.push(val);
+
+        if (buffer.length > frames) {
+            buffer.shift();
+        }
+
+        // Return median
+        const sorted = [...buffer].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted[mid];
+    }
+
+    /**
+     * Predicts a value using a Simplified 1D Kalman Filter.
+     * Great for tracking moving objects with noisy sensors.
+     * 
+     * @param {string} id - Unique ID for this sensor
+     * @param {number} val - The raw new value
+     * @param {number} R - Measurement Noise (default: 1). Higher = Trust sensor less.
+     * @param {number} Q - Process Noise (default: 0.1). Higher = Expect more movement.
+     * @returns {number} The estimated value
+     */
+    kalman(id, val, R = 1, Q = 0.1) {
+        if (!this.kalmanState.has(id)) {
+            // Initial state: [estimate, error_covariance]
+            this.kalmanState.set(id, { x: val, p: 1 });
+            return val;
+        }
+
+        let state = this.kalmanState.get(id);
+
+        // Prediction Phase
+        let p_pred = state.p + Q;
+
+        // Update Phase
+        let K = p_pred / (p_pred + R); // Kalman Gain
+        let x_new = state.x + K * (val - state.x); // New Estimate
+        let p_new = (1 - K) * p_pred; // New Covariance
+
+        // Save state
+        state.x = x_new;
+        state.p = p_new;
+
+        return x_new;
     }
 }
 

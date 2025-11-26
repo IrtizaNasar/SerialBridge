@@ -41,9 +41,15 @@
         },
         'muse_2': {
             name: 'Muse 2 Headset',
-            service: 0xfe8d,  // Muse service UUID (16-bit format)
-            characteristic: '273e0003-4c4d-454d-96be-f03bac821358', // EEG characteristic
-            parser: parseMuseData
+            service: 0xfe8d,
+            characteristics: {
+                '273e0003-4c4d-454d-96be-f03bac821358': 'eeg',
+                '273e000f-4c4d-454d-96be-f03bac821358': 'ppg',
+                '273e000a-4c4d-454d-96be-f03bac821358': 'accel',
+                '273e0009-4c4d-454d-96be-f03bac821358': 'gyro'
+            },
+            controlCharacteristic: '273e0001-4c4d-454d-96be-f03bac821358',
+            parser: parseMuseDispatcher
         }
     };
 
@@ -169,10 +175,18 @@
 
         try {
             console.log('Calling navigator.bluetooth.requestDevice...');
+
+            // Get selected profile to determine service UUID
+            const profileSelect = document.getElementById('ble_profile_' + id);
+            const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
+            const profile = DEVICE_PROFILES[profileKey];
+
+            console.log(`Scanning for profile: ${profile.name} (Service: ${profile.service})`);
+
             // Request device - this will trigger the IPC flow
             const device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: [UART_SERVICE_UUID] }],
-                optionalServices: [UART_SERVICE_UUID]
+                filters: [{ services: [profile.service] }],
+                optionalServices: [profile.service]
             });
 
             console.log('Device selected:', device.name);
@@ -252,7 +266,7 @@
             let selectionFound = false;
             deviceList.forEach(device => {
                 // Debug: Log what we're receiving
-                console.log('Client: Processing device:', device);
+                // console.log('Client: Processing device:', device);
 
                 const option = document.createElement('option');
                 option.value = device.deviceId;
@@ -319,6 +333,13 @@
         }
 
         if (connectionId) {
+            // Clear Keep-Alive Interval
+            if (connections[connectionId].keepAliveInterval) {
+                console.log('Clearing Keep-Alive interval for', connectionId);
+                clearInterval(connections[connectionId].keepAliveInterval);
+                connections[connectionId].keepAliveInterval = null;
+            }
+
             updateBLEUIStatus(connectionId, 'disconnected');
             if (connections[connectionId]) {
                 connections[connectionId].status = 'disconnected';
@@ -353,8 +374,14 @@
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             // Get selected profile
-            const profileSelect = document.getElementById('ble_profile_' + targetId);
-            const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
+            let profileKey;
+            if (targetId && connections[targetId] && connections[targetId].profile) {
+                console.log('Using stored profile for reconnection:', connections[targetId].profile);
+                profileKey = connections[targetId].profile;
+            } else {
+                const profileSelect = document.getElementById('ble_profile_' + targetId);
+                profileKey = profileSelect ? profileSelect.value : 'generic_uart';
+            }
             const profile = DEVICE_PROFILES[profileKey];
 
             console.log(`Connecting using profile: ${profile.name}`);
@@ -370,10 +397,65 @@
             }
 
             console.log('Getting Characteristics...');
-            const txChar = await service.getCharacteristic(profile.characteristic);
 
-            console.log('Starting Notifications...');
-            await txChar.startNotifications();
+            if (profile.characteristics) {
+                // Multi-characteristic support (Muse 2)
+                for (const [uuid, type] of Object.entries(profile.characteristics)) {
+                    console.log(`Subscribing to ${type} (${uuid})...`);
+                    try {
+                        const char = await service.getCharacteristic(uuid);
+                        await char.startNotifications();
+                        char.addEventListener('characteristicvaluechanged', (event) => {
+                            handleBLEData(event, targetId, type);
+                        });
+                    } catch (e) {
+                        console.warn(`Failed to subscribe to ${type}:`, e);
+                    }
+                }
+            } else {
+                // Single characteristic support (Generic UART)
+                const txChar = await service.getCharacteristic(profile.characteristic);
+                await txChar.startNotifications();
+                txChar.addEventListener('characteristicvaluechanged', (event) => {
+                    handleBLEData(event, targetId);
+                });
+            }
+
+            // Special handling for Muse 2: Send start command
+            if (profile.controlCharacteristic) {
+                console.log('Muse 2: Getting Control Characteristic...');
+                const controlChar = await service.getCharacteristic(profile.controlCharacteristic);
+                console.log('Muse 2: Sending Start Command (d) with length prefix...');
+                // Command: <length> <char> <newline>
+                // 0x02 = length of "d\n"
+                // 0x64 = 'd'
+                // 0x0a = '\n'
+                const command = new Uint8Array([0x02, 0x64, 0x0a]);
+                await controlChar.writeValue(command);
+                console.log('Muse 2: Start Command Sent!');
+
+                // Keep-Alive Mechanism
+                // Read control char every 60 seconds to prevent idle disconnect (Passive)
+                if (targetId && connections[targetId]) {
+                    console.log('Muse 2: Starting Optimized Keep-Alive interval (60s)...');
+                    connections[targetId].keepAliveInterval = setInterval(async () => {
+                        if (connections[targetId] && connections[targetId].status === 'connected' && controlChar) {
+                            try {
+                                // Just read the value to keep connection active without sending data
+                                await controlChar.readValue();
+                                // console.log('Muse 2: Keep-Alive read success');
+                            } catch (e) {
+                                console.warn('Muse 2: Keep-Alive failed', e);
+                            }
+                        } else {
+                            // Stop if disconnected
+                            if (connections[targetId] && connections[targetId].keepAliveInterval) {
+                                clearInterval(connections[targetId].keepAliveInterval);
+                            }
+                        }
+                    }, 60000);
+                }
+            }
 
             // Store profile parser in the connection object for use in handleBLEData
             if (targetId && connections[targetId]) {
@@ -381,9 +463,7 @@
                 connections[targetId].parser = profile.parser;
             }
 
-            txChar.addEventListener('characteristicvaluechanged', (event) => {
-                handleBLEData(event, targetId);
-            });
+            // Listener added above based on profile type
 
             console.log('BLE Connected!');
 
@@ -483,54 +563,118 @@
         return decoder.decode(dataView);
     }
 
-    // Parse Muse 2 data (binary packets)
-    function parseMuseData(dataView) {
-        // Muse sends binary packets with EEG data
-        // This is a simplified implementation based on Muse protocol specs
-        const byteLength = dataView.byteLength;
+    // Dispatcher for Muse 2
+    function parseMuseDispatcher(dataView, type) {
+        switch (type) {
+            case 'eeg': return parseMuseEEG(dataView);
+            case 'ppg': return parseMusePPG(dataView);
+            case 'accel': return parseMuseAccel(dataView);
+            case 'gyro': return parseMuseGyro(dataView);
+            default: return null;
+        }
+    }
 
-        if (byteLength < 20) {
-            // Not enough data for a valid packet
-            return null;
+    // Parse Muse 2 EEG
+    function parseMuseEEG(dataView) {
+        const byteLength = dataView.byteLength;
+        if (byteLength < 10) return null;
+
+        const packetIndex = dataView.getUint16(0, false); // Big Endian
+
+        // Helper to unpack 12-bit samples from a 3-byte block
+        function unpackSamples(offset) {
+            const b0 = dataView.getUint8(offset);
+            const b1 = dataView.getUint8(offset + 1);
+            const b2 = dataView.getUint8(offset + 2);
+
+            const s1 = (b0 << 4) | ((b1 & 0xF0) >> 4);
+            const s2 = ((b1 & 0x0F) << 8) | b2;
+
+            return [s1, s2];
         }
 
-        // Muse EEG packets contain 12 samples per channel
-        // Format: [index][ch1_sample1][ch1_sample2]...[ch4_sample12]
-        const packetIndex = dataView.getUint16(0, false);
+        const block1 = unpackSamples(2);
+        const block2 = unpackSamples(5);
+        const center = 2048;
 
-        // Extract EEG values (simplified - real implementation would decode all 12 samples)
-        // For demo purposes, we'll just extract the first sample from each channel
         const eegData = {
             type: 'eeg',
             timestamp: Date.now(),
             index: packetIndex,
             data: {
-                tp9: dataView.getUint16(2, false),   // Left ear
-                af7: dataView.getUint16(4, false),   // Left forehead
-                af8: dataView.getUint16(6, false),   // Right forehead
-                tp10: dataView.getUint16(8, false),  // Right ear
-                aux: dataView.getUint16(10, false)   // Auxiliary
+                tp9: block1[0] - center,
+                af7: block1[1] - center,
+                af8: block2[0] - center,
+                tp10: block2[1] - center,
+                aux: 0
             }
         };
 
         return JSON.stringify(eegData);
     }
 
-    function handleBLEData(event, connectionId) {
+    // Parse Muse 2 IMU (Accel/Gyro)
+    function parseMuseIMU(dataView, type, scale) {
+        if (dataView.byteLength < 8) return null;
+        const index = dataView.getUint16(0, false);
+        const x = dataView.getInt16(2, false) * scale;
+        const y = dataView.getInt16(4, false) * scale;
+        const z = dataView.getInt16(6, false) * scale;
+
+        return JSON.stringify({
+            type: type,
+            timestamp: Date.now(),
+            index: index,
+            data: { x, y, z }
+        });
+    }
+
+    function parseMuseAccel(dataView) {
+        // Scale factor: 0.0000610352 (2g range)
+        return parseMuseIMU(dataView, 'accel', 0.0000610352);
+    }
+
+    function parseMuseGyro(dataView) {
+        // Scale factor: 0.0074768 (245dps range)
+        return parseMuseIMU(dataView, 'gyro', 0.0074768);
+    }
+
+    // Parse Muse 2 PPG
+    // 3 channels: Ambient, IR, Red
+    function parseMusePPG(dataView) {
+        if (dataView.byteLength < 8) return null;
+        const index = dataView.getUint16(0, false);
+        // PPG values are usually 24-bit, but packed? 
+        // For now assuming 3x Uint16 for simplicity, will refine if needed.
+        const ch1 = dataView.getUint16(2, false);
+        const ch2 = dataView.getUint16(4, false);
+        const ch3 = dataView.getUint16(6, false);
+
+        return JSON.stringify({
+            type: 'ppg',
+            timestamp: Date.now(),
+            index: index,
+            data: { ch1, ch2, ch3 }
+        });
+    }
+
+    function handleBLEData(event, connectionId, type = null) {
         const value = event.target.value;
+        // console.log(`BLE Data received for ${connectionId}`, value);
 
         // Get the connection and its parser
         const connection = connections[connectionId];
         if (!connection || !connection.parser) {
-            console.warn('No parser found for connection:', connectionId);
+            // console.warn('No parser found for connection:', connectionId);
             return;
         }
 
         // Use the connection's parser to decode the data
-        const parsedData = connection.parser(value);
+        const parsedData = connection.parser(value, type);
 
         if (parsedData === null) {
             // Parser returned null (invalid/incomplete packet)
+            console.warn('Parser returned null for data');
             return;
         }
 
@@ -588,6 +732,14 @@
 
     window.disconnectBLE = function (id) {
         const conn = connections[id];
+
+        // Clear Keep-Alive Interval if exists
+        if (conn && conn.keepAliveInterval) {
+            console.log('Clearing Keep-Alive interval for', id);
+            clearInterval(conn.keepAliveInterval);
+            conn.keepAliveInterval = null;
+        }
+
         if (conn && conn.device && conn.device.gatt.connected) {
             try {
                 conn.device.gatt.disconnect();
@@ -794,7 +946,7 @@
     });
 
     socket.on('serial-data', function (data) {
-        console.log('Serial data received:', data);
+        // console.log('Serial data received:', data);
         displaySerialData(data.id, data.data);
     });
 
@@ -1046,6 +1198,9 @@
         connectionCard.innerHTML = html;
         connectionsDiv.appendChild(connectionCard);
 
+        connectionCard.innerHTML = html;
+        connectionsDiv.appendChild(connectionCard);
+
         // Populate the form with serial content by default
         const contentDiv = document.getElementById('content_' + id);
         if (contentDiv) {
@@ -1162,7 +1317,25 @@
                 <button class="btn btn-danger" onclick="window.removeConnection('${id}')">Remove</button>
             </div>
 
-            <div class="data-preview" id="data_${id}">
+            <div class="data-preview-header">
+                <span class="data-preview-label">Data Preview</span>
+                <div class="preview-controls" style="display: flex; gap: 4px;">
+                    <button class="btn-icon btn-sm" onclick="window.copyDataPreview('${id}')" title="Copy Data" id="copy_${id}" style="display: none;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon btn-sm" onclick="window.toggleDataPause('${id}')" title="Pause/Resume Scrolling" id="pause_${id}">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="data-preview" id="data_${id}" onmousedown="event.stopPropagation()">
                 <div class="data-line">Not connected</div>
             </div>
         `;
@@ -1196,8 +1369,26 @@
                 <button class="btn btn-danger" onclick="window.removeConnection('${id}')">Remove</button>
             </div>
 
-            <div class="data-preview" id="data_${id}">
+            <div class="data-preview-header">
+                <span class="data-preview-label">Data Preview</span>
+                <div class="preview-controls" style="display: flex; gap: 4px;">
+                    <button class="btn-icon btn-sm" onclick="window.copyDataPreview('${id}')" title="Copy Data" id="copy_${id}" style="display: none;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon btn-sm" onclick="window.toggleDataPause('${id}')" title="Pause/Resume Scrolling" id="pause_${id}">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="data-preview" id="data_${id}" onmousedown="event.stopPropagation()">
                 <div class="data-line">Not connected</div>
+            </div>
         `;
     }
 
@@ -1397,7 +1588,39 @@
         }
     }
 
+    // Toggle Data Pause
+    window.toggleDataPause = function (id) {
+        const conn = connections[id];
+        if (!conn) return;
+
+        conn.isPaused = !conn.isPaused;
+
+        const pauseBtn = document.getElementById('pause_' + id);
+        const copyBtn = document.getElementById('copy_' + id);
+
+        if (pauseBtn) {
+            if (conn.isPaused) {
+                // Show Play Icon
+                pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+                pauseBtn.classList.add('active'); // Highlight when paused
+
+                // Show Copy Button
+                if (copyBtn) copyBtn.style.display = 'flex';
+            } else {
+                // Show Pause Icon
+                pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+                pauseBtn.classList.remove('active');
+
+                // Hide Copy Button
+                if (copyBtn) copyBtn.style.display = 'none';
+            }
+        }
+    };
+
     function displaySerialData(id, data) {
+        // Check if paused
+        if (connections[id] && connections[id].isPaused) return;
+
         const dataPreview = document.getElementById('data_' + id);
         if (dataPreview) {
             const timestamp = new Date().toLocaleTimeString();
@@ -1412,6 +1635,32 @@
             }
         }
     }
+
+    // Copy Data Preview
+    window.copyDataPreview = async function (id) {
+        const dataPreview = document.getElementById('data_' + id);
+        if (!dataPreview) return;
+
+        const text = dataPreview.innerText;
+        try {
+            await navigator.clipboard.writeText(text);
+
+            // Visual feedback
+            const btn = document.getElementById('copy_' + id);
+            if (btn) {
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#10B981" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.style.borderColor = '';
+                }, 1500);
+            }
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    };
 
     window.removeConnection = function (id) {
         console.log('Removing connection:', id);
@@ -1708,6 +1957,9 @@
                                 </div>
                             </div>
                         `;
+
+                        connectionCard.innerHTML = html;
+                        connectionsDiv.appendChild(connectionCard);
 
                         connectionCard.innerHTML = html;
                         connectionsDiv.appendChild(connectionCard);

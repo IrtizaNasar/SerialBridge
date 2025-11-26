@@ -673,6 +673,8 @@ body {
     max-height: 120px;
     overflow-y: auto;
     display: none;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .data-preview.active {
@@ -1282,4 +1284,59 @@ body {
 
 .connection-card.collapsed .card-content {
     display: none;
+}
+
+/* Data Preview Header & Controls */
+.data-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+
+.data-preview-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-icon {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 28px;
+    height: 28px;
+}
+
+.btn-icon:hover {
+    background: var(--bg-glass-hover);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
+    transform: translateY(-1px);
+}
+
+.btn-icon.active {
+    color: var(--accent-warning);
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.btn-icon.active:hover {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* Override margin since header handles it */
+.data-preview {
+    margin-top: 0 !important;
 }
