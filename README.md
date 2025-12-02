@@ -25,7 +25,7 @@
 - **Bluetooth Low Energy (BLE) Support**: Native support for Arduino Uno R4 WiFi, Nano 33 BLE, and ESP32.
 - **Device Profiles**: Built-in support for complex devices like the **Muse 2** EEG headband.
 - **Session Management**: Save and load your entire workspace configuration.
-- **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters for P5.js.
+- **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
 
 ## Table of Contents
