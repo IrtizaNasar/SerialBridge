@@ -77,12 +77,23 @@ void loop() {
       if (millis() - lastTime > 200) { // Faster updates for testing
         lastTime = millis();
 
-        String msg = String(analogRead(A0)) + "\n";
-        txChar.writeValue(msg);
+        // FIX: Use C-string buffer instead of String object to prevent heap
+        // fragmentation
+        char txBuffer[32];
+        int sensorValue = analogRead(A0);
+
+        // Format the string safely: "1023\n"
+        snprintf(txBuffer, sizeof(txBuffer), "%d\n", sensorValue);
+
+        txChar.writeValue(txBuffer);
 
         Serial.print("Sent: ");
-        Serial.print(msg);
+        Serial.print(txBuffer);
       }
+
+      // CRITICAL FIX: Small delay to allow BLE stack background tasks to run
+      // This prevents the connection from timing out due to CPU starvation
+      delay(10);
     }
 
     Serial.print("Disconnected from central: ");
