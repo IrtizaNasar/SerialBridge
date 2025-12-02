@@ -69,7 +69,8 @@
         "AppImage",
         "deb"
       ],
-      "category": "Development"
+      "category": "Development",
+      "maintainer": "Irtiza Nasar <irtiza.nasar@example.com>"
     }
   }
 }
