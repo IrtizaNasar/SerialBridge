@@ -27,6 +27,7 @@
 - **Session Management**: Save and load your entire workspace configuration.
 - **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
+- **Smart Error Handling**: Intelligent detection of "Port Busy" states (USB) with actionable troubleshooting steps.
 
 ## Table of Contents
 
