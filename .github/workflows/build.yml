@@ -1,4 +1,4 @@
-name: V2 Build and Release
+name: SerialBridge v2 Pre-Release Build
 
 on:
   push:
