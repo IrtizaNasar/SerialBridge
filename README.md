@@ -815,7 +815,7 @@ npm start
     *   Allows you to keep your source code private.
     *   Contact **Irtiza Nasar** (<irtizanasar@gmail.com>) for commercial licensing inquiries.
 
-Copyright © 2024 Irtiza Nasar. All rights reserved.
+Copyright © 2025 Irtiza Nasar. All rights reserved.
 
 ## Contributors
 
