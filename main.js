@@ -278,10 +278,10 @@ function createWindow() {
         width: 1300,
         height: 1000,
         webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            webSecurity: true,
-            preload: path.join(__dirname, 'preload.js')
+            nodeIntegration: false, // Security: Disable Node.js integration in renderer
+            contextIsolation: true, // Security: Protect against prototype pollution
+            webSecurity: true,      // Security: Enforce same-origin policy
+            preload: path.join(__dirname, 'preload.js') // Preload script for safe IPC
         },
         title: 'Serial Bridge',
         titleBarStyle: 'hiddenInset',
@@ -352,6 +352,8 @@ function createWindow() {
     });
 
     // Handle device selection from renderer
+    // This event is triggered when the user clicks "Connect" in the UI
+    // It resolves the promise returned by navigator.bluetooth.requestDevice() in the renderer
     ipcMain.on('bluetooth-device-selected', (event, deviceId) => {
         console.log('Main: Device selected:', deviceId);
         if (bluetoothCallback) {

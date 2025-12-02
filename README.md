@@ -20,6 +20,14 @@
 </p>
 <br>
 
+## What's New in V2.0
+
+- **Bluetooth Low Energy (BLE) Support**: Native support for Arduino Uno R4 WiFi, Nano 33 BLE, and ESP32.
+- **Device Profiles**: Built-in support for complex devices like the **Muse 2** EEG headband.
+- **Session Management**: Save and load your entire workspace configuration.
+- **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters for P5.js.
+- **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
+
 ## Table of Contents
 
 - [Features](#features)
@@ -556,13 +564,18 @@ The `examples/` directory contains complete working examples for both P5.js and 
   - `store-input-p5js`: Simple data visualization with a circle and saved as a JSON file
   - `store-multi-input-p5js`: Visualization of an array of data and stored as a JSON file.
   - `bidirectional-interactive-p5js`: Simple data visualization with bar chart and line graph
+  - `test-serial-p5js`: Utility sketch to test connection and log data
 
 - **arduino-sketches**: Example Arduino sketches
-  - `basic-send-data.ino`: Send analog sensor data
-  - `basic-recieve.ino`: Recieve mouse position data to control analogWrite()
-  - `send-multi-data.ino`: Send two x analog sensor data
-  - `send-multi-data-array.ino`: Send an array of sensor data
-  - `interactive-led.ino`: Bidirectional communication with LED control
+  - `basic-sensor`: Send analog sensor data
+  - `basic-send-data`: Send analog sensor data (alternative)
+  - `basic-recieve-data`: Recieve mouse position data to control analogWrite()
+  - `send-multi-data`: Send two x analog sensor data
+  - `send-multi-array-data`: Send an array of sensor data
+  - `bidirectional-interactive`: Bidirectional communication with LED control
+  - `ble-uno-r4.ino`: BLE example for Arduino Uno R4 WiFi
+  - `ble-nano33.ino`: BLE example for Arduino Nano 33 BLE
+  - `ble-esp32.ino`: BLE example for ESP32
 
 
 ### Bluetooth Setup

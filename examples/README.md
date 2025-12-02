@@ -95,43 +95,53 @@ A simple P5.js sketch that visualizes data from an Arduino in real-time and send
 - Displays data as a bar chart and line graph
 - Shows connection status indicator
 
+#### `/test-serial-p5js/`
+
+A utility sketch to test if data is being received correctly.
+
+**Features:**
+
+- Connects to Serial Bridge
+- Logs all received data to the browser console
+- Useful for debugging connection issues
+
 ### `/arduino-sketches/`
 
 Example Arduino sketches compatible with the Bridge.
 
-#### `basic-sensor.ino`
+#### `basic-sensor/`
 
 - Reads an analog sensor (A0) and sends values to serial
 - Ideal for getting started
 - Compatible with potentiometers, light sensors, etc.
 
-#### `basic-send-data.ino`
+#### `basic-send-data/`
 
 - Reads an analog sensor (A0) and sends values to serial
 - Ideal for getting started
 - Compatible with potentiometers, light sensors, etc.
 
-#### `basic-recieve-data.ino`
+#### `basic-recieve-data/`
 
 - Recieves data from a p5js sketch over serial
 - Uses the data to control analogWrite() values.
 - Ideal for getting started
 - Compatible with outputs such as LEDs, DC Motors etc
 
-#### `send-multi-data.ino`
+#### `send-multi-data/`
 
 - Reads two analog sensors (A0), (A1) and sends values to serial
 - Demonstrates comma separated serial data
 - Compatible with potentiometers, light sensors, etc.
 
-#### `send-multi-array.ino`
+#### `send-multi-array-data/`
 
 - Reads three analog sensors (A0), (A1), (A2) and sends values to serial
 - Demonstrates how to use comma separated serial data
 - Uses an array of sensorPins to demonstrate how to scale the example to as many inputs as you wish.
 - Compatible with potentiometers, light sensors, etc.
 
-#### `bidirectional-interactive.ino`
+#### `bidirectional-interactive/`
 
 - Demonstrates bidirectional communication
 - Sends sensor data AND receives commands
@@ -148,12 +158,18 @@ Example Arduino sketches compatible with the Bridge.
 - Same NUS implementation as Uno R4
 - **Note:** Use `BLE.setLocalName()` to set a unique name for identification
 
+#### `ble-esp32.ino`
+- Bluetooth Low Energy example for ESP32 boards
+- Implements Nordic UART Service (NUS)
+- Compatible with standard ESP32 dev boards
+
 ### `/basic-p5js/`
 
 #### `sketch.js`
 - Basic data visualization (receive only)
 
 #### `sketch-ble-control.js`
+- **Note:** This file is located in the root of `examples/p5js-sketches/` (not in a subfolder)
 - Interactive LED control via Bluetooth (send & receive)
 - Works with both `ble-uno-r4.ino` and `ble-nano33.ino`
 - Press keys 1, 2, Space to control LED

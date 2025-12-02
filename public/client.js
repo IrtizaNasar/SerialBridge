@@ -146,7 +146,7 @@
     }
 
     // ========================================
-    // BLUETOOTH (BLE) FUNCTIONS
+    // BLUETOOTH (BLE) LOGIC
     // ========================================
     // These functions handle Bluetooth Low Energy device scanning and connection
     // BLE is used for devices like Arduino Uno R4 WiFi that don't create COM ports
@@ -708,19 +708,24 @@
         displaySerialData(connectionId, parsedData);
     }
 
-    function addBLEToUI(id, name) {
-        const container = document.getElementById('connections');
-        const emptyState = document.getElementById('empty-state');
-        if (emptyState) {
-            emptyState.style.display = 'none';
-        }
+    // ========================================
+    // UI HELPER FUNCTIONS
+    // ========================================
 
-        const displayNum = getDisplayNumber(id);
-        const div = document.createElement('div');
-        div.className = 'connection-card';
-        div.id = 'card_' + id;
+    // Add a new BLE connection card to the UI
+    // This is called when the user clicks "New Connection" -> "Bluetooth"
+    const container = document.getElementById('connections');
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) {
+        emptyState.style.display = 'none';
+    }
 
-        div.innerHTML = `
+    const displayNum = getDisplayNumber(id);
+    const div = document.createElement('div');
+    div.className = 'connection-card';
+    div.id = 'card_' + id;
+
+    div.innerHTML = `
         <div class="card-header">
             <div class="card-title">
                 <h3>Arduino ${displayNum} (BLE)</h3>
@@ -750,507 +755,507 @@
             <div class="data-line">Waiting for data...</div>
         </div>
     `;
-        container.prepend(div);
-    }
+    container.prepend(div);
+}
 
     window.disconnectBLE = function (id) {
-        const conn = connections[id];
+    const conn = connections[id];
 
-        // Clear Keep-Alive Interval if exists
-        if (conn && conn.keepAliveInterval) {
-            console.log('Clearing Keep-Alive interval for', id);
-            clearInterval(conn.keepAliveInterval);
-            conn.keepAliveInterval = null;
+    // Clear Keep-Alive Interval if exists
+    if (conn && conn.keepAliveInterval) {
+        console.log('Clearing Keep-Alive interval for', id);
+        clearInterval(conn.keepAliveInterval);
+        conn.keepAliveInterval = null;
+    }
+
+    if (conn && conn.device && conn.device.gatt.connected) {
+        try {
+            conn.device.gatt.disconnect();
+        } catch (e) {
+            console.warn('Error disconnecting BLE:', e);
         }
+    }
+    // Always update UI to disconnected state
+    updateBLEUIStatus(id, 'disconnected');
+    if (conn) conn.status = 'disconnected';
+};
 
-        if (conn && conn.device && conn.device.gatt.connected) {
-            try {
-                conn.device.gatt.disconnect();
-            } catch (e) {
-                console.warn('Error disconnecting BLE:', e);
-            }
-        }
-        // Always update UI to disconnected state
-        updateBLEUIStatus(id, 'disconnected');
-        if (conn) conn.status = 'disconnected';
-    };
+function updateBLEUIStatus(id, status) {
+    const statusEl = document.getElementById('status_' + id);
+    const btn = document.getElementById('connect_' + id);
 
-    function updateBLEUIStatus(id, status) {
-        const statusEl = document.getElementById('status_' + id);
-        const btn = document.getElementById('connect_' + id);
-
-        if (statusEl) {
-            if (status === 'connected') {
-                statusEl.className = 'status-badge status-connected';
-                statusEl.innerHTML = '<div class="status-dot"></div>Connected';
-            } else {
-                statusEl.className = 'status-badge status-disconnected';
-                statusEl.innerHTML = '<div class="status-dot"></div>Disconnected';
-            }
-        }
-
-        if (btn) {
-            if (status === 'connected') {
-                btn.textContent = 'Disconnect';
-                // Use setAttribute to be consistent with updateConnectionId and ensure DOM reflects state
-                btn.setAttribute('onclick', `window.disconnectBLE('${id}')`);
-                btn.className = 'btn btn-danger';
-                btn.disabled = false;
-            } else {
-                btn.textContent = 'Reconnect';
-                btn.setAttribute('onclick', `window.reconnectBLE('${id}')`);
-                btn.className = 'btn btn-primary';
-                btn.disabled = false;
-            }
+    if (statusEl) {
+        if (status === 'connected') {
+            statusEl.className = 'status-badge status-connected';
+            statusEl.innerHTML = '<div class="status-dot"></div>Connected';
+        } else {
+            statusEl.className = 'status-badge status-disconnected';
+            statusEl.innerHTML = '<div class="status-dot"></div>Disconnected';
         }
     }
 
-    window.reconnectBLE = async function (id) {
-        const conn = connections[id];
-        if (conn && conn.device) {
-            try {
-                const btn = document.getElementById('connect_' + id);
-                if (btn) {
-                    btn.textContent = 'Connecting...';
-                    btn.disabled = true;
-                }
-
-                await setupBLEDevice(conn.device, id);
-
-            } catch (error) {
-                console.error('Reconnection failed:', error);
-                alert('Reconnection failed: ' + error);
-                updateBLEUIStatus(id, 'disconnected');
-            }
+    if (btn) {
+        if (status === 'connected') {
+            btn.textContent = 'Disconnect';
+            // Use setAttribute to be consistent with updateConnectionId and ensure DOM reflects state
+            btn.setAttribute('onclick', `window.disconnectBLE('${id}')`);
+            btn.className = 'btn btn-danger';
+            btn.disabled = false;
         } else {
-            alert('Device information lost. Please remove and add again.');
+            btn.textContent = 'Reconnect';
+            btn.setAttribute('onclick', `window.reconnectBLE('${id}')`);
+            btn.className = 'btn btn-primary';
+            btn.disabled = false;
         }
-    };
+    }
+}
 
-    // Start BLE Scan
-    window.scanBLE = async function (id) {
-        console.log('scanBLE called for:', id);
-
-        // Prevent rapid re-scanning which can cause Bluetooth API to hang
-        const now = Date.now();
-        if (now - lastScanTime < SCAN_COOLDOWN) {
-            console.log('Scan cooldown active, please wait...');
-            return;
-        }
-        lastScanTime = now;
-
-        // Cancel any existing scan for this card or others
-        if (scanningConnectionId) {
-            console.log('Cancelling active scan for', scanningConnectionId);
-            if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
-            // Wait a bit for cancellation to process
-            await new Promise(resolve => setTimeout(resolve, 300));
-        }
-
-        scanningConnectionId = id;
-        const scanBtn = document.getElementById('scan_' + id);
-        const select = document.getElementById('ble_device_' + id);
-        const profileSelect = document.getElementById('ble_profile_' + id);
-
-        if (scanBtn) {
-            scanBtn.textContent = 'Scanning...';
-            scanBtn.className = 'btn'; // Reset class
-            scanBtn.disabled = false; // Keep enabled so user can click to Rescan
-        }
-        if (select) {
-            select.innerHTML = '<option>Scanning...</option>';
-            select.disabled = true;
-        }
-
-        // Get selected profile
-        const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
-        const profile = DEVICE_PROFILES[profileKey];
-
-        console.log(`Scanning for profile: ${profile.name} (Service: ${profile.service})`);
-
+window.reconnectBLE = async function (id) {
+    const conn = connections[id];
+    if (conn && conn.device) {
         try {
-            console.log('Calling navigator.bluetooth.requestDevice...');
+            const btn = document.getElementById('connect_' + id);
+            if (btn) {
+                btn.textContent = 'Connecting...';
+                btn.disabled = true;
+            }
 
-            // Request device - this will trigger the native Bluetooth picker
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: [profile.service] }],
-                optionalServices: [profile.service]
-            });
-
-            console.log('Device selected:', device.name);
-
-            // Device was selected, now connect to it
-            await setupBLEDevice(device, id);
+            await setupBLEDevice(conn.device, id);
 
         } catch (error) {
-            console.error('BLE Scan Error:', error);
-
-            // Don't show alert for user cancellation
-            if (error.name !== 'NotFoundError' && error.name !== 'NotAllowedError' && !error.message.includes('User cancelled')) {
-                alert('Error scanning for devices: ' + error.message);
-            }
-
-            // Make sure to send cancellation to main process
-            if (ipcRenderer && error.name !== 'NotFoundError') {
-                ipcRenderer.send('bluetooth-device-cancelled');
-            }
-        } finally {
-            console.log('Scan complete, resetting scanningConnectionId');
-            scanningConnectionId = null;
-            if (scanBtn) {
-                scanBtn.disabled = false; // Re-enable scan button
-
-                // Reset button text based on whether devices were found
-                const select = document.getElementById('ble_device_' + id);
-                if (select && select.options.length > 1) {
-                    scanBtn.textContent = 'Rescan';
-                } else {
-                    scanBtn.textContent = 'Scan';
-                }
-            }
+            console.error('Reconnection failed:', error);
+            alert('Reconnection failed: ' + error);
+            updateBLEUIStatus(id, 'disconnected');
         }
-    };
+    } else {
+        alert('Device information lost. Please remove and add again.');
+    }
+};
 
-    window.removeBLE = function (id) {
-        console.log('Removing BLE connection:', id);
+// Start BLE Scan
+window.scanBLE = async function (id) {
+    console.log('scanBLE called for:', id);
 
-        // If this card was scanning, cancel the scan
-        if (scanningConnectionId === id) {
-            console.log('Cancelling active scan for', id);
-            if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
-            scanningConnectionId = null;
-        }
+    // Prevent rapid re-scanning which can cause Bluetooth API to hang
+    const now = Date.now();
+    if (now - lastScanTime < SCAN_COOLDOWN) {
+        console.log('Scan cooldown active, please wait...');
+        return;
+    }
+    lastScanTime = now;
 
-        // Attempt disconnect first
-        window.disconnectBLE(id);
-
-        // Remove from connections
-        if (connections[id]) {
-            delete connections[id];
-            console.log('Deleted connection ' + id + ' from map. Remaining keys:', Object.keys(connections));
-        } else {
-            console.warn('Connection ' + id + ' not found in map during remove');
-        }
-
-        // Remove from UI
-        const card = document.getElementById('card_' + id);
-        if (card) card.remove();
-
-        // Check empty state
-        if (Object.keys(connections).length === 0) {
-            const emptyState = document.getElementById('empty-state');
-            if (emptyState) emptyState.style.display = ''; // Clear inline style to let CSS take over
-        }
-    };
-    // Move connections object to top scope if not already there, or ensure it's not overwritten
-
-    // Display server URL in the sidebar and usage instructions
-    const serverUrl = window.location.origin;
-    const serverUrlElement = document.getElementById('server-url');
-    if (serverUrlElement) {
-        serverUrlElement.textContent = serverUrl;
+    // Cancel any existing scan for this card or others
+    if (scanningConnectionId) {
+        console.log('Cancelling active scan for', scanningConnectionId);
+        if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+        // Wait a bit for cancellation to process
+        await new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    // Update Socket.IO URL in the usage snippet
-    const socketioUrlElement = document.getElementById('socketio-url');
-    if (socketioUrlElement) {
-        socketioUrlElement.textContent = serverUrl;
+    scanningConnectionId = id;
+    const scanBtn = document.getElementById('scan_' + id);
+    const select = document.getElementById('ble_device_' + id);
+    const profileSelect = document.getElementById('ble_profile_' + id);
+
+    if (scanBtn) {
+        scanBtn.textContent = 'Scanning...';
+        scanBtn.className = 'btn'; // Reset class
+        scanBtn.disabled = false; // Keep enabled so user can click to Rescan
+    }
+    if (select) {
+        select.innerHTML = '<option>Scanning...</option>';
+        select.disabled = true;
     }
 
-    // Update all dynamic server URL spans
-    const dynamicUrlElements = document.querySelectorAll('.dynamic-server-url');
-    dynamicUrlElements.forEach(el => {
-        el.textContent = serverUrl;
-    });
+    // Get selected profile
+    const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
+    const profile = DEVICE_PROFILES[profileKey];
 
-    socket.on('connection-status', function (data) {
-        console.log('Connection status update:', data);
-        updateConnectionStatus(data.id, data.status, data.port);
-    });
+    console.log(`Scanning for profile: ${profile.name} (Service: ${profile.service})`);
 
-    socket.on('serial-data', function (data) {
-        // console.log('Serial data received:', data);
-        displaySerialData(data.id, data.data);
-    });
+    try {
+        console.log('Calling navigator.bluetooth.requestDevice...');
 
-    // Get the next available ID using lowest-available logic
-    function getNextAvailableId() {
-        let num = 1;
-        while (connections.hasOwnProperty('device_' + num)) {
-            num++;
-        }
-        return 'device_' + num;
-    }
+        // Request device - this will trigger the native Bluetooth picker
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [profile.service] }],
+            optionalServices: [profile.service]
+        });
 
-    // Calculate the display number for the Device
-    function getDisplayNumber(id) {
-        const match = id.match(/^device_(\d+)$/);
-        return match ? match[1] : id;
-    }
+        console.log('Device selected:', device.name);
 
-    // Also fix updateConnectionId to handle BLE renames properly
-    window.updateConnectionId = function (oldId, newId) {
-        newId = newId.trim();
+        // Device was selected, now connect to it
+        await setupBLEDevice(device, id);
 
-        // Validation
-        if (!newId) {
-            alert('ID cannot be empty');
-            return false;
+    } catch (error) {
+        console.error('BLE Scan Error:', error);
+
+        // Don't show alert for user cancellation
+        if (error.name !== 'NotFoundError' && error.name !== 'NotAllowedError' && !error.message.includes('User cancelled')) {
+            alert('Error scanning for devices: ' + error.message);
         }
 
-        if (!/^[a-zA-Z0-9_]+$/.test(newId)) {
-            alert('ID can only contain letters, numbers, and underscores');
-            return false;
+        // Make sure to send cancellation to main process
+        if (ipcRenderer && error.name !== 'NotFoundError') {
+            ipcRenderer.send('bluetooth-device-cancelled');
         }
+    } finally {
+        console.log('Scan complete, resetting scanningConnectionId');
+        scanningConnectionId = null;
+        if (scanBtn) {
+            scanBtn.disabled = false; // Re-enable scan button
 
-        if (newId === oldId) {
-            return true; // No change needed
-        }
-
-        if (connections.hasOwnProperty(newId)) {
-            alert('ID "' + newId + '" is already in use');
-            return false;
-        }
-
-        // Check if connected - don't allow renaming while connected
-        // For BLE, we allowed disconnecting via UI, so status should be 'disconnected'
-        if (connections[oldId] && connections[oldId].status === 'connected') {
-            alert('Cannot rename while connected. Disconnect first.');
-            return false;
-        }
-
-        // Update the connection data
-        connections[newId] = connections[oldId];
-        delete connections[oldId];
-
-        // Update DOM elements IDs
-        const card = document.getElementById('card_' + oldId);
-        if (card) card.id = 'card_' + newId;
-
-        const statusEl = document.getElementById('status_' + oldId);
-        if (statusEl) statusEl.id = 'status_' + newId;
-
-        // Update specific BLE elements if they exist
-        const idInput = document.getElementById('id_input_' + oldId);
-        if (idInput) {
-            idInput.id = 'id_input_' + newId;
-            idInput.value = newId; // Update value too
-            window.resizeInput(idInput); // Trigger resize
-        }
-
-        const connectBtn = document.getElementById('connect_' + oldId);
-        if (connectBtn) {
-            connectBtn.id = 'connect_' + newId;
-            // Update onclick handler for BLE
-            if (connections[newId].type === 'ble') {
-                // Re-bind the correct function based on status
-                if (connections[newId].status === 'connected') {
-                    connectBtn.setAttribute('onclick', `window.disconnectBLE('${newId}')`);
-                } else {
-                    connectBtn.setAttribute('onclick', `window.reconnectBLE('${newId}')`);
-                }
-            }
-        }
-
-        // Update Remove Button (handles both BLE and Serial)
-        const removeBtn = card ? card.querySelector('.btn-remove, [onclick*="removeBLE"], [onclick*="removeConnection"]') : null;
-        if (removeBtn) {
-            if (connections[newId].type === 'ble') {
-                removeBtn.setAttribute('onclick', `window.removeBLE('${newId}')`);
+            // Reset button text based on whether devices were found
+            const select = document.getElementById('ble_device_' + id);
+            if (select && select.options.length > 1) {
+                scanBtn.textContent = 'Rescan';
             } else {
-                removeBtn.setAttribute('onclick', `window.removeConnection('${newId}')`);
+                scanBtn.textContent = 'Scan';
             }
         }
+    }
+};
 
-        const editBtn = card ? card.querySelector('[onclick*="editConnectionId"]') : null;
-        if (editBtn) {
-            editBtn.setAttribute('onclick', `window.editConnectionId('${newId}')`);
-        }
+window.removeBLE = function (id) {
+    console.log('Removing BLE connection:', id);
 
-        // Update ID group container click handler
-        const idGroup = card ? card.querySelector('.connection-id-group') : null;
-        if (idGroup) {
-            idGroup.setAttribute('onclick', `window.editConnectionId('${newId}')`);
-        }
+    // If this card was scanning, cancel the scan
+    if (scanningConnectionId === id) {
+        console.log('Cancelling active scan for', id);
+        if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+        scanningConnectionId = null;
+    }
 
-        // Update collapse button
-        const collapseBtn = card ? card.querySelector('.btn-collapse') : null;
-        if (collapseBtn) {
-            collapseBtn.setAttribute('onclick', `window.toggleCard('${newId}')`);
-        }
+    // Attempt disconnect first
+    window.disconnectBLE(id);
 
-        const dataPreview = document.getElementById('data_' + oldId);
-        if (dataPreview) dataPreview.id = 'data_' + newId;
+    // Remove from connections
+    if (connections[id]) {
+        delete connections[id];
+        console.log('Deleted connection ' + id + ' from map. Remaining keys:', Object.keys(connections));
+    } else {
+        console.warn('Connection ' + id + ' not found in map during remove');
+    }
 
-        // For standard serial ports
-        const portSelect = document.getElementById('port_' + oldId);
-        if (portSelect) {
-            portSelect.id = 'port_' + newId;
-            portSelect.setAttribute('name', 'port_' + newId);
-        }
+    // Remove from UI
+    const card = document.getElementById('card_' + id);
+    if (card) card.remove();
 
-        // Update Content Wrapper and Toggles
-        const contentWrapper = document.getElementById('content_wrapper_' + oldId);
-        if (contentWrapper) contentWrapper.id = 'content_wrapper_' + newId;
+    // Check empty state
+    if (Object.keys(connections).length === 0) {
+        const emptyState = document.getElementById('empty-state');
+        if (emptyState) emptyState.style.display = ''; // Clear inline style to let CSS take over
+    }
+};
+// Move connections object to top scope if not already there, or ensure it's not overwritten
 
-        const toggleSerial = document.getElementById('toggle_serial_' + oldId);
-        if (toggleSerial) {
-            toggleSerial.id = 'toggle_serial_' + newId;
-            toggleSerial.setAttribute('onclick', `window.toggleConnectionType('${newId}', 'serial')`);
-        }
+// Display server URL in the sidebar and usage instructions
+const serverUrl = window.location.origin;
+const serverUrlElement = document.getElementById('server-url');
+if (serverUrlElement) {
+    serverUrlElement.textContent = serverUrl;
+}
 
-        const toggleBle = document.getElementById('toggle_ble_' + oldId);
-        if (toggleBle) {
-            toggleBle.id = 'toggle_ble_' + newId;
-            toggleBle.setAttribute('onclick', `window.toggleConnectionType('${newId}', 'ble')`);
-        }
+// Update Socket.IO URL in the usage snippet
+const socketioUrlElement = document.getElementById('socketio-url');
+if (socketioUrlElement) {
+    socketioUrlElement.textContent = serverUrl;
+}
 
-        const contentDiv = document.getElementById('content_' + oldId);
-        if (contentDiv) contentDiv.id = 'content_' + newId;
+// Update all dynamic server URL spans
+const dynamicUrlElements = document.querySelectorAll('.dynamic-server-url');
+dynamicUrlElements.forEach(el => {
+    el.textContent = serverUrl;
+});
 
-        // Update BLE Profile Select
-        const profileSelect = document.getElementById('ble_profile_' + oldId);
-        if (profileSelect) {
-            profileSelect.id = 'ble_profile_' + newId;
-            profileSelect.setAttribute('onchange', `window.handleProfileChange('${newId}')`);
-        }
+socket.on('connection-status', function (data) {
+    console.log('Connection status update:', data);
+    updateConnectionStatus(data.id, data.status, data.port);
+});
 
-        // Update Serial specific elements
-        if (connections[newId].type !== 'ble') {
-            const refreshBtn = card.querySelector('[onclick*="refreshPorts"]');
-            if (refreshBtn) refreshBtn.setAttribute('onclick', 'window.refreshPorts(\'' + newId + '\')');
+socket.on('serial-data', function (data) {
+    // console.log('Serial data received:', data);
+    displaySerialData(data.id, data.data);
+});
 
-            const toggleBtn = card.querySelector('[onclick*="toggleConnection"]');
-            if (toggleBtn) toggleBtn.setAttribute('onclick', 'window.toggleConnection(\'' + newId + '\')');
+// Get the next available ID using lowest-available logic
+function getNextAvailableId() {
+    let num = 1;
+    while (connections.hasOwnProperty('device_' + num)) {
+        num++;
+    }
+    return 'device_' + num;
+}
 
-            const baudSelect = document.getElementById('baud_' + oldId);
-            if (baudSelect) baudSelect.id = 'baud_' + newId;
-        }
+// Calculate the display number for the Device
+function getDisplayNumber(id) {
+    const match = id.match(/^device_(\d+)$/);
+    return match ? match[1] : id;
+}
 
-        // Update Pause Button
-        const pauseBtn = document.getElementById('pause_' + oldId);
-        if (pauseBtn) {
-            pauseBtn.id = 'pause_' + newId;
-            pauseBtn.setAttribute('onclick', `window.togglePause('${newId}')`);
-        }
+// Also fix updateConnectionId to handle BLE renames properly
+window.updateConnectionId = function (oldId, newId) {
+    newId = newId.trim();
 
-        console.log('Renamed connection from ' + oldId + ' to ' + newId);
-        return true;
-    };
+    // Validation
+    if (!newId) {
+        alert('ID cannot be empty');
+        return false;
+    }
 
+    if (!/^[a-zA-Z0-9_]+$/.test(newId)) {
+        alert('ID can only contain letters, numbers, and underscores');
+        return false;
+    }
 
-    // Enable editing of connection ID
-    window.editConnectionId = function (id) {
-        const idInput = document.getElementById('id_input_' + id);
-        const oldValue = idInput.value;
+    if (newId === oldId) {
+        return true; // No change needed
+    }
 
-        // Add editing class to container
-        const container = idInput.closest('.connection-id-group');
-        if (container) container.classList.add('editing');
+    if (connections.hasOwnProperty(newId)) {
+        alert('ID "' + newId + '" is already in use');
+        return false;
+    }
 
-        idInput.disabled = false;
-        idInput.focus();
-        idInput.select();
+    // Check if connected - don't allow renaming while connected
+    // For BLE, we allowed disconnecting via UI, so status should be 'disconnected'
+    if (connections[oldId] && connections[oldId].status === 'connected') {
+        alert('Cannot rename while connected. Disconnect first.');
+        return false;
+    }
 
-        // Handle Enter key to save - Delegate to blur to avoid double-fire
-        idInput.onkeydown = function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                idInput.blur(); // This will trigger onblur
-            } else if (e.key === 'Escape') {
-                idInput.value = oldValue;
-                idInput.disabled = true;
+    // Update the connection data
+    connections[newId] = connections[oldId];
+    delete connections[oldId];
 
-                // Remove editing class from container
-                const container = idInput.closest('.connection-id-group');
-                if (container) container.classList.remove('editing');
+    // Update DOM elements IDs
+    const card = document.getElementById('card_' + oldId);
+    if (card) card.id = 'card_' + newId;
 
-                // Clear handlers
-                idInput.onkeydown = null;
-                idInput.onblur = null;
+    const statusEl = document.getElementById('status_' + oldId);
+    if (statusEl) statusEl.id = 'status_' + newId;
+
+    // Update specific BLE elements if they exist
+    const idInput = document.getElementById('id_input_' + oldId);
+    if (idInput) {
+        idInput.id = 'id_input_' + newId;
+        idInput.value = newId; // Update value too
+        window.resizeInput(idInput); // Trigger resize
+    }
+
+    const connectBtn = document.getElementById('connect_' + oldId);
+    if (connectBtn) {
+        connectBtn.id = 'connect_' + newId;
+        // Update onclick handler for BLE
+        if (connections[newId].type === 'ble') {
+            // Re-bind the correct function based on status
+            if (connections[newId].status === 'connected') {
+                connectBtn.setAttribute('onclick', `window.disconnectBLE('${newId}')`);
+            } else {
+                connectBtn.setAttribute('onclick', `window.reconnectBLE('${newId}')`);
             }
-        };
+        }
+    }
 
-        // Handle blur (click away) to save
-        idInput.onblur = function () {
-            const newValue = idInput.value;
-            if (newValue !== oldValue) {
-                if (!window.updateConnectionId(id, newValue)) {
-                    idInput.value = oldValue;
-                }
-            }
+    // Update Remove Button (handles both BLE and Serial)
+    const removeBtn = card ? card.querySelector('.btn-remove, [onclick*="removeBLE"], [onclick*="removeConnection"]') : null;
+    if (removeBtn) {
+        if (connections[newId].type === 'ble') {
+            removeBtn.setAttribute('onclick', `window.removeBLE('${newId}')`);
+        } else {
+            removeBtn.setAttribute('onclick', `window.removeConnection('${newId}')`);
+        }
+    }
+
+    const editBtn = card ? card.querySelector('[onclick*="editConnectionId"]') : null;
+    if (editBtn) {
+        editBtn.setAttribute('onclick', `window.editConnectionId('${newId}')`);
+    }
+
+    // Update ID group container click handler
+    const idGroup = card ? card.querySelector('.connection-id-group') : null;
+    if (idGroup) {
+        idGroup.setAttribute('onclick', `window.editConnectionId('${newId}')`);
+    }
+
+    // Update collapse button
+    const collapseBtn = card ? card.querySelector('.btn-collapse') : null;
+    if (collapseBtn) {
+        collapseBtn.setAttribute('onclick', `window.toggleCard('${newId}')`);
+    }
+
+    const dataPreview = document.getElementById('data_' + oldId);
+    if (dataPreview) dataPreview.id = 'data_' + newId;
+
+    // For standard serial ports
+    const portSelect = document.getElementById('port_' + oldId);
+    if (portSelect) {
+        portSelect.id = 'port_' + newId;
+        portSelect.setAttribute('name', 'port_' + newId);
+    }
+
+    // Update Content Wrapper and Toggles
+    const contentWrapper = document.getElementById('content_wrapper_' + oldId);
+    if (contentWrapper) contentWrapper.id = 'content_wrapper_' + newId;
+
+    const toggleSerial = document.getElementById('toggle_serial_' + oldId);
+    if (toggleSerial) {
+        toggleSerial.id = 'toggle_serial_' + newId;
+        toggleSerial.setAttribute('onclick', `window.toggleConnectionType('${newId}', 'serial')`);
+    }
+
+    const toggleBle = document.getElementById('toggle_ble_' + oldId);
+    if (toggleBle) {
+        toggleBle.id = 'toggle_ble_' + newId;
+        toggleBle.setAttribute('onclick', `window.toggleConnectionType('${newId}', 'ble')`);
+    }
+
+    const contentDiv = document.getElementById('content_' + oldId);
+    if (contentDiv) contentDiv.id = 'content_' + newId;
+
+    // Update BLE Profile Select
+    const profileSelect = document.getElementById('ble_profile_' + oldId);
+    if (profileSelect) {
+        profileSelect.id = 'ble_profile_' + newId;
+        profileSelect.setAttribute('onchange', `window.handleProfileChange('${newId}')`);
+    }
+
+    // Update Serial specific elements
+    if (connections[newId].type !== 'ble') {
+        const refreshBtn = card.querySelector('[onclick*="refreshPorts"]');
+        if (refreshBtn) refreshBtn.setAttribute('onclick', 'window.refreshPorts(\'' + newId + '\')');
+
+        const toggleBtn = card.querySelector('[onclick*="toggleConnection"]');
+        if (toggleBtn) toggleBtn.setAttribute('onclick', 'window.toggleConnection(\'' + newId + '\')');
+
+        const baudSelect = document.getElementById('baud_' + oldId);
+        if (baudSelect) baudSelect.id = 'baud_' + newId;
+    }
+
+    // Update Pause Button
+    const pauseBtn = document.getElementById('pause_' + oldId);
+    if (pauseBtn) {
+        pauseBtn.id = 'pause_' + newId;
+        pauseBtn.setAttribute('onclick', `window.togglePause('${newId}')`);
+    }
+
+    console.log('Renamed connection from ' + oldId + ' to ' + newId);
+    return true;
+};
+
+
+// Enable editing of connection ID
+window.editConnectionId = function (id) {
+    const idInput = document.getElementById('id_input_' + id);
+    const oldValue = idInput.value;
+
+    // Add editing class to container
+    const container = idInput.closest('.connection-id-group');
+    if (container) container.classList.add('editing');
+
+    idInput.disabled = false;
+    idInput.focus();
+    idInput.select();
+
+    // Handle Enter key to save - Delegate to blur to avoid double-fire
+    idInput.onkeydown = function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            idInput.blur(); // This will trigger onblur
+        } else if (e.key === 'Escape') {
+            idInput.value = oldValue;
             idInput.disabled = true;
 
             // Remove editing class from container
             const container = idInput.closest('.connection-id-group');
             if (container) container.classList.remove('editing');
 
-            // Clear handlers to prevent memory leaks or weird states
+            // Clear handlers
             idInput.onkeydown = null;
             idInput.onblur = null;
-        };
+        }
     };
 
-    // ========================================
-    // CONNECTION MANAGEMENT
-    // ========================================
-    // These functions handle creating, updating, and removing connection cards
-
-    /**
-     * Creates a new connection card
-     * This is called when the user clicks "+ New Connection"
-     * By default, creates a USB Serial connection
-     */
-    window.addConnection = function () {
-        console.log('Adding new connection...');
-
-        const id = getNextAvailableId();
-        const displayNum = getDisplayNumber(id);
-        // Default to serial, with a default name
-        connections[id] = {
-            status: 'disconnected',
-            type: 'serial',
-            port: null,
-            name: `Serial Device ${displayNum}`
-        };
-
-        console.log('Created connection with ID:', id);
-
-        const emptyState = document.getElementById('empty-state');
-        if (emptyState) {
-            emptyState.style.display = 'none';
+    // Handle blur (click away) to save
+    idInput.onblur = function () {
+        const newValue = idInput.value;
+        if (newValue !== oldValue) {
+            if (!window.updateConnectionId(id, newValue)) {
+                idInput.value = oldValue;
+            }
         }
+        idInput.disabled = true;
 
-        const connectionsDiv = document.getElementById('connections');
-        if (!connectionsDiv) {
-            console.error('Connections container not found!');
-            return;
-        }
+        // Remove editing class from container
+        const container = idInput.closest('.connection-id-group');
+        if (container) container.classList.remove('editing');
 
-        const connectionCard = document.createElement('div');
-        connectionCard.className = 'connection-card';
-        connectionCard.id = 'card_' + id;
-        connectionCard.setAttribute('draggable', 'true');
+        // Clear handlers to prevent memory leaks or weird states
+        idInput.onkeydown = null;
+        idInput.onblur = null;
+    };
+};
 
-        // Drag Events
-        connectionCard.addEventListener('dragstart', () => {
-            // Use setTimeout to ensure the drag image is created from the full opacity element
-            // before we apply the dragging class to dim it in the DOM
-            setTimeout(() => {
-                connectionCard.classList.add('dragging');
-            }, 0);
-        });
+// ========================================
+// CONNECTION MANAGEMENT
+// ========================================
+// These functions handle creating, updating, and removing connection cards
 
-        connectionCard.addEventListener('dragend', () => {
-            connectionCard.classList.remove('dragging');
-        });
+/**
+ * Creates a new connection card
+ * This is called when the user clicks "+ New Connection"
+ * By default, creates a USB Serial connection
+ */
+window.addConnection = function () {
+    console.log('Adding new connection...');
 
-        const isConnected = connections[id].status === 'connected';
-        const statusClass = isConnected ? 'status-connected' : 'status-disconnected';
-        const statusText = isConnected ? 'Connected' : 'Disconnected';
+    const id = getNextAvailableId();
+    const displayNum = getDisplayNumber(id);
+    // Default to serial, with a default name
+    connections[id] = {
+        status: 'disconnected',
+        type: 'serial',
+        port: null,
+        name: `Serial Device ${displayNum}`
+    };
 
-        // Common Header
-        let html = `
+    console.log('Created connection with ID:', id);
+
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) {
+        emptyState.style.display = 'none';
+    }
+
+    const connectionsDiv = document.getElementById('connections');
+    if (!connectionsDiv) {
+        console.error('Connections container not found!');
+        return;
+    }
+
+    const connectionCard = document.createElement('div');
+    connectionCard.className = 'connection-card';
+    connectionCard.id = 'card_' + id;
+    connectionCard.setAttribute('draggable', 'true');
+
+    // Drag Events
+    connectionCard.addEventListener('dragstart', () => {
+        // Use setTimeout to ensure the drag image is created from the full opacity element
+        // before we apply the dragging class to dim it in the DOM
+        setTimeout(() => {
+            connectionCard.classList.add('dragging');
+        }, 0);
+    });
+
+    connectionCard.addEventListener('dragend', () => {
+        connectionCard.classList.remove('dragging');
+    });
+
+    const isConnected = connections[id].status === 'connected';
+    const statusClass = isConnected ? 'status-connected' : 'status-disconnected';
+    const statusText = isConnected ? 'Connected' : 'Disconnected';
+
+    // Common Header
+    let html = `
             <div class="card-header">
                 <div class="card-title">
                     <input type="text" class="card-title-input" value="${connections[id].name}" onchange="window.updateConnectionName('${id}', this.value)">
@@ -1297,92 +1302,92 @@
             </div>
         `;
 
-        connectionCard.innerHTML = html;
-        connectionsDiv.appendChild(connectionCard);
+    connectionCard.innerHTML = html;
+    connectionsDiv.appendChild(connectionCard);
 
-        // Initialize input width
-        const idInput = document.getElementById('id_input_' + id);
-        if (idInput) window.resizeInput(idInput);
+    // Initialize input width
+    const idInput = document.getElementById('id_input_' + id);
+    if (idInput) window.resizeInput(idInput);
 
-        // Populate the form with serial content by default
-        const contentDiv = document.getElementById('content_' + id);
-        if (contentDiv) {
-            contentDiv.innerHTML = getSerialFormHtml(id);
+    // Populate the form with serial content by default
+    const contentDiv = document.getElementById('content_' + id);
+    if (contentDiv) {
+        contentDiv.innerHTML = getSerialFormHtml(id);
+    }
+
+    // Automatically refresh ports for serial connections
+    // Use setTimeout to ensure DOM elements are fully rendered
+    setTimeout(() => {
+        window.refreshPorts(id);
+    }, 100);
+
+    // Update connection counts
+    window.updateConnectionCounts();
+
+    console.log('Connection card added to DOM');
+};
+
+window.updateConnectionName = function (id, newName) {
+    if (connections[id]) {
+        connections[id].name = newName;
+        console.log(`Updated name for ${id} to ${newName}`);
+    }
+};
+
+window.toggleConnectionType = function (id, type) {
+    if (!connections[id]) return;
+
+    // If already connected, warn user
+    if (connections[id].status === 'connected') {
+        if (!confirm('Switching connection type will disconnect the current device. Continue?')) {
+            return;
         }
-
-        // Automatically refresh ports for serial connections
-        // Use setTimeout to ensure DOM elements are fully rendered
-        setTimeout(() => {
-            window.refreshPorts(id);
-        }, 100);
-
-        // Update connection counts
-        window.updateConnectionCounts();
-
-        console.log('Connection card added to DOM');
-    };
-
-    window.updateConnectionName = function (id, newName) {
-        if (connections[id]) {
-            connections[id].name = newName;
-            console.log(`Updated name for ${id} to ${newName}`);
-        }
-    };
-
-    window.toggleConnectionType = function (id, type) {
-        if (!connections[id]) return;
-
-        // If already connected, warn user
-        if (connections[id].status === 'connected') {
-            if (!confirm('Switching connection type will disconnect the current device. Continue?')) {
-                return;
-            }
-            // Disconnect first
-            if (connections[id].type === 'ble') {
-                window.disconnectBLE(id);
-            } else {
-                // For serial, we don't have a disconnect function exposed yet, but we can just reset state
-                // In a real app, we'd call window.disconnectSerial(id)
-                connections[id].status = 'disconnected';
-                updateConnectionStatus(id, 'disconnected');
-            }
-        }
-
-        connections[id].type = type;
-        console.log(`Switched connection ${id} to ${type}`);
-
-        // Update Toggle UI
-        const serialToggle = document.getElementById(`toggle_serial_${id}`);
-        const bleToggle = document.getElementById(`toggle_ble_${id}`);
-
-        if (type === 'serial') {
-            serialToggle.classList.add('active');
-            bleToggle.classList.remove('active');
+        // Disconnect first
+        if (connections[id].type === 'ble') {
+            window.disconnectBLE(id);
         } else {
-            serialToggle.classList.remove('active');
-            bleToggle.classList.add('active');
+            // For serial, we don't have a disconnect function exposed yet, but we can just reset state
+            // In a real app, we'd call window.disconnectSerial(id)
+            connections[id].status = 'disconnected';
+            updateConnectionStatus(id, 'disconnected');
         }
+    }
 
-        // Update Content
-        const contentDiv = document.getElementById(`content_${id}`);
-        if (contentDiv) {
-            if (type === 'serial') {
-                contentDiv.innerHTML = getSerialFormHtml(id);
-                // Automatically refresh ports when switching to serial
-                setTimeout(() => {
-                    window.refreshPorts(id);
-                }, 100);
-            } else {
-                contentDiv.innerHTML = getBLEFormHtml(id);
-            }
+    connections[id].type = type;
+    console.log(`Switched connection ${id} to ${type}`);
+
+    // Update Toggle UI
+    const serialToggle = document.getElementById(`toggle_serial_${id}`);
+    const bleToggle = document.getElementById(`toggle_ble_${id}`);
+
+    if (type === 'serial') {
+        serialToggle.classList.add('active');
+        bleToggle.classList.remove('active');
+    } else {
+        serialToggle.classList.remove('active');
+        bleToggle.classList.add('active');
+    }
+
+    // Update Content
+    const contentDiv = document.getElementById(`content_${id}`);
+    if (contentDiv) {
+        if (type === 'serial') {
+            contentDiv.innerHTML = getSerialFormHtml(id);
+            // Automatically refresh ports when switching to serial
+            setTimeout(() => {
+                window.refreshPorts(id);
+            }, 100);
+        } else {
+            contentDiv.innerHTML = getBLEFormHtml(id);
         }
+    }
 
-        // Update connection counts
-        window.updateConnectionCounts();
-    };
+    // Update connection counts
+    window.updateConnectionCounts();
+};
 
-    function getSerialFormHtml(id) {
-        return `
+function getSerialFormHtml(id) {
+    return `
             <div class="form-group">
                 <label class="form-label" for="port_${id}">Serial Port</label>
                 <select class="form-select" id="port_${id}">
@@ -1442,16 +1447,16 @@
                 <div class="data-line">Not connected</div>
             </div>
         `;
+}
+
+function getBLEFormHtml(id) {
+    // Generate options from DEVICE_PROFILES
+    let profileOptions = '';
+    for (const [key, profile] of Object.entries(DEVICE_PROFILES)) {
+        profileOptions += `<option value="${key}">${profile.name}</option>`;
     }
 
-    function getBLEFormHtml(id) {
-        // Generate options from DEVICE_PROFILES
-        let profileOptions = '';
-        for (const [key, profile] of Object.entries(DEVICE_PROFILES)) {
-            profileOptions += `<option value="${key}">${profile.name}</option>`;
-        }
-
-        return `
+    return `
             <div class="form-group">
                 <label class="form-label">Device Profile</label>
                 <select class="form-select" id="ble_profile_${id}" onchange="window.handleProfileChange('${id}')">
@@ -1493,542 +1498,542 @@
                 <div class="data-line">Not connected</div>
             </div>
         `;
+}
+
+// Handle profile change - reset device list and scan button
+window.handleProfileChange = function (id) {
+    console.log('handleProfileChange called for:', id);
+
+    // Cancel any ongoing scan for this connection
+    if (scanningConnectionId === id) {
+        console.log('Cancelling ongoing scan due to profile change');
+        if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+        scanningConnectionId = null;
     }
 
-    // Handle profile change - reset device list and scan button
-    window.handleProfileChange = function (id) {
-        console.log('handleProfileChange called for:', id);
+    const select = document.getElementById('ble_device_' + id);
+    const scanBtn = document.getElementById('scan_' + id);
+    const connectBtn = document.getElementById('connect_' + id);
 
-        // Cancel any ongoing scan for this connection
+    console.log('Elements found:', { select: !!select, scanBtn: !!scanBtn, connectBtn: !!connectBtn });
+
+    if (select) {
+        select.innerHTML = '<option value="">Click Scan to find devices...</option>';
+        select.disabled = false;
+    }
+
+    if (scanBtn) {
+        console.log('Resetting scan button text from:', scanBtn.textContent, 'to: Scan');
+        scanBtn.textContent = 'Scan';
+        scanBtn.disabled = false;
+    }
+
+    if (connectBtn) {
+        connectBtn.disabled = true;
+    }
+
+    console.log('Device profile changed for connection:', id);
+};
+
+
+
+
+
+window.refreshPorts = async function (id) {
+    console.log('Refreshing ports for:', id);
+
+    try {
+        const response = await fetch('/api/ports');
+        const data = await response.json();
+        const portSelect = document.getElementById('port_' + id);
+
+        if (!portSelect) {
+            console.error('Port select element not found for:', id);
+            return;
+        }
+
+        portSelect.innerHTML = '<option value="">Select port...</option>';
+
+        // Show ALL ports, not just Arduino ones
+        if (data.all && data.all.length > 0) {
+            data.all.forEach(function (port) {
+                const option = document.createElement('option');
+                option.value = port.path;
+                // On Windows, manufacturer might be missing or different.
+                // Show Path (COMx) + Manufacturer + VID/PID if available
+                let label = port.path;
+                if (port.manufacturer) {
+                    label += ' - ' + port.manufacturer;
+                }
+                if (port.vendorId || port.productId) {
+                    label += ` (${port.vendorId || '?'}:${port.productId || '?'})`;
+                }
+                option.textContent = label;
+                portSelect.appendChild(option);
+            });
+            console.log('Found', data.all.length, 'ports');
+        } else {
+            console.log('No ports found');
+        }
+
+    } catch (error) {
+        console.error('Failed to refresh ports:', error);
+    }
+};
+
+window.refreshAllPorts = function () {
+    console.log('Refreshing all ports...');
+    Object.keys(connections).forEach(function (id) {
+        window.refreshPorts(id);
+    });
+};
+
+window.toggleConnection = async function (id) {
+    console.log('Toggling connection for:', id);
+
+    const connection = connections[id];
+    const connectBtn = document.getElementById('connect_' + id);
+
+    if (!connection || !connectBtn) {
+        console.error('Connection or button not found for:', id);
+        return;
+    }
+
+    if (connection.status === 'disconnected') {
+        const portSelect = document.getElementById('port_' + id);
+        const selectedPort = portSelect.value;
+
+        const baudSelect = document.getElementById('baud_' + id);
+        const selectedBaud = parseInt(baudSelect.value);
+
+        if (!selectedPort) {
+            alert('Please select a port first');
+            return;
+        }
+
+        connectBtn.textContent = 'Connecting...';
+        connectBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: id,
+                    portPath: selectedPort,
+                    baudRate: selectedBaud
+                })
+            });
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+
+            // Update UI immediately on success
+            // The socket event will also update it, but this ensures immediate feedback
+            updateConnectionStatus(id, 'connected', selectedPort);
+
+        } catch (error) {
+            console.error('Connection failed:', error);
+            connectBtn.textContent = 'Connect';
+            connectBtn.disabled = false;
+            alert('Connection failed: ' + error.message);
+        }
+    } else {
+        try {
+            await fetch('/api/disconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            });
+        } catch (error) {
+            console.error('Disconnect failed:', error);
+        }
+    }
+};
+
+function updateConnectionStatus(id, status, port) {
+    console.log('Updating status for', id, 'to', status);
+
+    const connection = connections[id];
+    if (!connection) return;
+
+    connection.status = status;
+    connection.port = port;
+
+    const statusEl = document.getElementById('status_' + id);
+    const connectBtn = document.getElementById('connect_' + id);
+    const dataPreview = document.getElementById('data_' + id);
+
+    if (!statusEl || !connectBtn || !dataPreview) {
+        console.error('UI elements not found for:', id);
+        return;
+    }
+
+    statusEl.className = 'status-badge status-' + status;
+
+    switch (status) {
+        case 'connected':
+            statusEl.innerHTML = '<div class="status-dot"></div>Connected';
+            connectBtn.textContent = 'Disconnect';
+            connectBtn.disabled = false;
+            connectBtn.className = 'btn btn-danger';
+            dataPreview.classList.add('active');
+            break;
+        case 'connecting':
+            statusEl.innerHTML = '<div class="status-dot"></div>Connecting';
+            connectBtn.textContent = 'Connecting...';
+            connectBtn.disabled = true;
+            break;
+        case 'disconnected':
+            statusEl.innerHTML = '<div class="status-dot"></div>Disconnected';
+            connectBtn.textContent = 'Connect';
+            connectBtn.disabled = false;
+            connectBtn.className = 'btn btn-primary';
+            dataPreview.classList.remove('active');
+            break;
+    }
+}
+
+// Toggle Data Pause
+window.toggleDataPause = function (id) {
+    const conn = connections[id];
+    if (!conn) return;
+
+    conn.isPaused = !conn.isPaused;
+
+    const pauseBtn = document.getElementById('pause_' + id);
+    const copyBtn = document.getElementById('copy_' + id);
+
+    if (pauseBtn) {
+        if (conn.isPaused) {
+            // Show Play Icon
+            pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+            pauseBtn.classList.add('active'); // Highlight when paused
+
+            // Show Copy Button
+            if (copyBtn) copyBtn.style.display = 'flex';
+        } else {
+            // Show Pause Icon
+            pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+            pauseBtn.classList.remove('active');
+
+            // Hide Copy Button
+            if (copyBtn) copyBtn.style.display = 'none';
+        }
+    }
+};
+
+function displaySerialData(id, data) {
+    // Check if paused
+    if (connections[id] && connections[id].isPaused) return;
+
+    const dataPreview = document.getElementById('data_' + id);
+    if (dataPreview) {
+        const timestamp = new Date().toLocaleTimeString();
+        const newLine = document.createElement('div');
+        newLine.className = 'data-line';
+        newLine.textContent = '[' + timestamp + '] ' + data;
+        dataPreview.appendChild(newLine);
+        dataPreview.scrollTop = dataPreview.scrollHeight;
+
+        while (dataPreview.children.length > 50) {
+            dataPreview.removeChild(dataPreview.firstChild);
+        }
+    }
+}
+
+// Copy Data Preview
+window.copyDataPreview = async function (id) {
+    const dataPreview = document.getElementById('data_' + id);
+    if (!dataPreview) return;
+
+    const text = dataPreview.innerText;
+    try {
+        await navigator.clipboard.writeText(text);
+
+        // Visual feedback
+        const btn = document.getElementById('copy_' + id);
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#10B981" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.style.borderColor = '';
+            }, 1500);
+        }
+    } catch (err) {
+        console.error('Failed to copy:', err);
+    }
+};
+
+window.removeConnection = function (id) {
+    console.log('Removing connection:', id);
+
+    if (connections[id]) {
+        // Disconnect if connected
+        if (connections[id].status === 'connected') {
+            if (connections[id].type === 'ble') {
+                window.disconnectBLE(id);
+            } else {
+                window.toggleConnection(id);
+            }
+        }
+
+        // Cancel any active BLE scan
         if (scanningConnectionId === id) {
-            console.log('Cancelling ongoing scan due to profile change');
             if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
             scanningConnectionId = null;
         }
+    }
 
-        const select = document.getElementById('ble_device_' + id);
-        const scanBtn = document.getElementById('scan_' + id);
-        const connectBtn = document.getElementById('connect_' + id);
+    delete connections[id];
 
-        console.log('Elements found:', { select: !!select, scanBtn: !!scanBtn, connectBtn: !!connectBtn });
+    const cardElement = document.getElementById('card_' + id);
+    if (cardElement) {
+        cardElement.remove();
+    }
 
-        if (select) {
-            select.innerHTML = '<option value="">Click Scan to find devices...</option>';
-            select.disabled = false;
-        }
-
-        if (scanBtn) {
-            console.log('Resetting scan button text from:', scanBtn.textContent, 'to: Scan');
-            scanBtn.textContent = 'Scan';
-            scanBtn.disabled = false;
-        }
-
-        if (connectBtn) {
-            connectBtn.disabled = true;
-        }
-
-        console.log('Device profile changed for connection:', id);
-    };
-
-
-
-
-
-    window.refreshPorts = async function (id) {
-        console.log('Refreshing ports for:', id);
-
-        try {
-            const response = await fetch('/api/ports');
-            const data = await response.json();
-            const portSelect = document.getElementById('port_' + id);
-
-            if (!portSelect) {
-                console.error('Port select element not found for:', id);
-                return;
-            }
-
-            portSelect.innerHTML = '<option value="">Select port...</option>';
-
-            // Show ALL ports, not just Arduino ones
-            if (data.all && data.all.length > 0) {
-                data.all.forEach(function (port) {
-                    const option = document.createElement('option');
-                    option.value = port.path;
-                    // On Windows, manufacturer might be missing or different.
-                    // Show Path (COMx) + Manufacturer + VID/PID if available
-                    let label = port.path;
-                    if (port.manufacturer) {
-                        label += ' - ' + port.manufacturer;
-                    }
-                    if (port.vendorId || port.productId) {
-                        label += ` (${port.vendorId || '?'}:${port.productId || '?'})`;
-                    }
-                    option.textContent = label;
-                    portSelect.appendChild(option);
-                });
-                console.log('Found', data.all.length, 'ports');
-            } else {
-                console.log('No ports found');
-            }
-
-        } catch (error) {
-            console.error('Failed to refresh ports:', error);
-        }
-    };
-
-    window.refreshAllPorts = function () {
-        console.log('Refreshing all ports...');
-        Object.keys(connections).forEach(function (id) {
-            window.refreshPorts(id);
-        });
-    };
-
-    window.toggleConnection = async function (id) {
-        console.log('Toggling connection for:', id);
-
-        const connection = connections[id];
-        const connectBtn = document.getElementById('connect_' + id);
-
-        if (!connection || !connectBtn) {
-            console.error('Connection or button not found for:', id);
-            return;
-        }
-
-        if (connection.status === 'disconnected') {
-            const portSelect = document.getElementById('port_' + id);
-            const selectedPort = portSelect.value;
-
-            const baudSelect = document.getElementById('baud_' + id);
-            const selectedBaud = parseInt(baudSelect.value);
-
-            if (!selectedPort) {
-                alert('Please select a port first');
-                return;
-            }
-
-            connectBtn.textContent = 'Connecting...';
-            connectBtn.disabled = true;
-
-            try {
-                const response = await fetch('/api/connect', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: id,
-                        portPath: selectedPort,
-                        baudRate: selectedBaud
-                    })
-                });
-
-                const result = await response.json();
-                if (!result.success) {
-                    throw new Error(result.error);
-                }
-
-                // Update UI immediately on success
-                // The socket event will also update it, but this ensures immediate feedback
-                updateConnectionStatus(id, 'connected', selectedPort);
-
-            } catch (error) {
-                console.error('Connection failed:', error);
-                connectBtn.textContent = 'Connect';
-                connectBtn.disabled = false;
-                alert('Connection failed: ' + error.message);
-            }
-        } else {
-            try {
-                await fetch('/api/disconnect', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: id })
-                });
-            } catch (error) {
-                console.error('Disconnect failed:', error);
-            }
-        }
-    };
-
-    function updateConnectionStatus(id, status, port) {
-        console.log('Updating status for', id, 'to', status);
-
-        const connection = connections[id];
-        if (!connection) return;
-
-        connection.status = status;
-        connection.port = port;
-
-        const statusEl = document.getElementById('status_' + id);
-        const connectBtn = document.getElementById('connect_' + id);
-        const dataPreview = document.getElementById('data_' + id);
-
-        if (!statusEl || !connectBtn || !dataPreview) {
-            console.error('UI elements not found for:', id);
-            return;
-        }
-
-        statusEl.className = 'status-badge status-' + status;
-
-        switch (status) {
-            case 'connected':
-                statusEl.innerHTML = '<div class="status-dot"></div>Connected';
-                connectBtn.textContent = 'Disconnect';
-                connectBtn.disabled = false;
-                connectBtn.className = 'btn btn-danger';
-                dataPreview.classList.add('active');
-                break;
-            case 'connecting':
-                statusEl.innerHTML = '<div class="status-dot"></div>Connecting';
-                connectBtn.textContent = 'Connecting...';
-                connectBtn.disabled = true;
-                break;
-            case 'disconnected':
-                statusEl.innerHTML = '<div class="status-dot"></div>Disconnected';
-                connectBtn.textContent = 'Connect';
-                connectBtn.disabled = false;
-                connectBtn.className = 'btn btn-primary';
-                dataPreview.classList.remove('active');
-                break;
+    if (Object.keys(connections).length === 0) {
+        const emptyState = document.getElementById('empty-state');
+        if (emptyState) {
+            emptyState.style.display = '';
         }
     }
 
-    // Toggle Data Pause
-    window.toggleDataPause = function (id) {
-        const conn = connections[id];
-        if (!conn) return;
+    // Update connection counts
+    window.updateConnectionCounts();
+};
 
-        conn.isPaused = !conn.isPaused;
+window.toggleCard = function (id) {
+    const card = document.getElementById('card_' + id);
+    if (card) {
+        card.classList.toggle('collapsed');
+    }
+};
 
-        const pauseBtn = document.getElementById('pause_' + id);
-        const copyBtn = document.getElementById('copy_' + id);
+window.showUsageInfo = function () {
+    window.showUsageModal();
+};
 
-        if (pauseBtn) {
-            if (conn.isPaused) {
-                // Show Play Icon
-                pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
-                pauseBtn.classList.add('active'); // Highlight when paused
+window.toggleWorkspaceCollapse = function () {
+    const subcategories = document.getElementById('workspace-subcategories');
+    const chevron = document.querySelector('.nav-icon-chevron');
 
-                // Show Copy Button
-                if (copyBtn) copyBtn.style.display = 'flex';
-            } else {
-                // Show Pause Icon
-                pauseBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-                pauseBtn.classList.remove('active');
+    if (subcategories && chevron) {
+        subcategories.classList.toggle('collapsed');
+        chevron.classList.toggle('rotated');
+    }
+};
 
-                // Hide Copy Button
-                if (copyBtn) copyBtn.style.display = 'none';
-            }
-        }
-    };
+window.filterConnections = function (type) {
+    console.log('Filtering connections by type:', type);
 
-    function displaySerialData(id, data) {
-        // Check if paused
-        if (connections[id] && connections[id].isPaused) return;
+    // Update active state in sidebar
+    const navItems = document.querySelectorAll('.nav-section .nav-item');
+    navItems.forEach(item => {
+        item.classList.remove('active');
+    });
 
-        const dataPreview = document.getElementById('data_' + id);
-        if (dataPreview) {
-            const timestamp = new Date().toLocaleTimeString();
-            const newLine = document.createElement('div');
-            newLine.className = 'data-line';
-            newLine.textContent = '[' + timestamp + '] ' + data;
-            dataPreview.appendChild(newLine);
-            dataPreview.scrollTop = dataPreview.scrollHeight;
-
-            while (dataPreview.children.length > 50) {
-                dataPreview.removeChild(dataPreview.firstChild);
-            }
-        }
+    // Set active based on filter type
+    if (type === 'all') {
+        navItems[0].classList.add('active');
+    } else if (type === 'serial') {
+        navItems[1].classList.add('active');
+    } else if (type === 'ble') {
+        navItems[2].classList.add('active');
     }
 
-    // Copy Data Preview
-    window.copyDataPreview = async function (id) {
-        const dataPreview = document.getElementById('data_' + id);
-        if (!dataPreview) return;
-
-        const text = dataPreview.innerText;
-        try {
-            await navigator.clipboard.writeText(text);
-
-            // Visual feedback
-            const btn = document.getElementById('copy_' + id);
-            if (btn) {
-                const originalHtml = btn.innerHTML;
-                btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#10B981" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-                btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
-
-                setTimeout(() => {
-                    btn.innerHTML = originalHtml;
-                    btn.style.borderColor = '';
-                }, 1500);
-            }
-        } catch (err) {
-            console.error('Failed to copy:', err);
-        }
-    };
-
-    window.removeConnection = function (id) {
-        console.log('Removing connection:', id);
-
-        if (connections[id]) {
-            // Disconnect if connected
-            if (connections[id].status === 'connected') {
-                if (connections[id].type === 'ble') {
-                    window.disconnectBLE(id);
-                } else {
-                    window.toggleConnection(id);
-                }
-            }
-
-            // Cancel any active BLE scan
-            if (scanningConnectionId === id) {
-                if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
-                scanningConnectionId = null;
-            }
-        }
-
-        delete connections[id];
-
-        const cardElement = document.getElementById('card_' + id);
-        if (cardElement) {
-            cardElement.remove();
-        }
-
-        if (Object.keys(connections).length === 0) {
-            const emptyState = document.getElementById('empty-state');
-            if (emptyState) {
-                emptyState.style.display = '';
-            }
-        }
-
-        // Update connection counts
-        window.updateConnectionCounts();
-    };
-
-    window.toggleCard = function (id) {
+    // Filter connection cards
+    for (const id in connections) {
         const card = document.getElementById('card_' + id);
-        if (card) {
-            card.classList.toggle('collapsed');
-        }
-    };
+        if (!card) continue;
 
-    window.showUsageInfo = function () {
-        window.showUsageModal();
-    };
-
-    window.toggleWorkspaceCollapse = function () {
-        const subcategories = document.getElementById('workspace-subcategories');
-        const chevron = document.querySelector('.nav-icon-chevron');
-
-        if (subcategories && chevron) {
-            subcategories.classList.toggle('collapsed');
-            chevron.classList.toggle('rotated');
-        }
-    };
-
-    window.filterConnections = function (type) {
-        console.log('Filtering connections by type:', type);
-
-        // Update active state in sidebar
-        const navItems = document.querySelectorAll('.nav-section .nav-item');
-        navItems.forEach(item => {
-            item.classList.remove('active');
-        });
-
-        // Set active based on filter type
         if (type === 'all') {
-            navItems[0].classList.add('active');
-        } else if (type === 'serial') {
-            navItems[1].classList.add('active');
-        } else if (type === 'ble') {
-            navItems[2].classList.add('active');
+            card.style.display = '';
+        } else if (type === connections[id].type) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
         }
+    }
 
-        // Filter connection cards
-        for (const id in connections) {
-            const card = document.getElementById('card_' + id);
-            if (!card) continue;
+    // Update counts
+    updateConnectionCounts();
+};
 
-            if (type === 'all') {
-                card.style.display = '';
-            } else if (type === connections[id].type) {
-                card.style.display = '';
-            } else {
-                card.style.display = 'none';
-            }
+window.updateConnectionCounts = function () {
+    let serialCount = 0;
+    let bleCount = 0;
+
+    for (const id in connections) {
+        if (connections[id].type === 'serial') {
+            serialCount++;
+        } else if (connections[id].type === 'ble') {
+            bleCount++;
         }
+    }
 
-        // Update counts
-        updateConnectionCounts();
+    const serialCountEl = document.getElementById('serial-count');
+    const bleCountEl = document.getElementById('ble-count');
+
+    if (serialCountEl) serialCountEl.textContent = serialCount;
+    if (bleCountEl) bleCountEl.textContent = bleCount;
+};
+
+window.showUsageModal = function () {
+    const modal = document.getElementById('usage-modal');
+    const socketioUrlModal = document.getElementById('socketio-url-modal');
+    if (socketioUrlModal) {
+        socketioUrlModal.textContent = serverUrl;
+    }
+    modal.classList.add('active');
+};
+
+window.closeUsageModal = function () {
+    const modal = document.getElementById('usage-modal');
+    modal.classList.remove('active');
+    localStorage.setItem('usageModalSeen', 'true');
+};
+
+// ========================================
+// SESSION MANAGEMENT
+// ========================================
+// Save and load connection configurations as JSON files
+
+/**
+ * Saves the current connections to a JSON file
+ * Exports connection names, types, ports, and settings
+ * Does NOT save runtime state (connected/disconnected status)
+ */
+window.saveSession = function () {
+    console.log('Saving session...');
+
+    // Create configuration object
+    const config = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        connections: {}
     };
 
-    window.updateConnectionCounts = function () {
-        let serialCount = 0;
-        let bleCount = 0;
-
-        for (const id in connections) {
-            if (connections[id].type === 'serial') {
-                serialCount++;
-            } else if (connections[id].type === 'ble') {
-                bleCount++;
-            }
-        }
-
-        const serialCountEl = document.getElementById('serial-count');
-        const bleCountEl = document.getElementById('ble-count');
-
-        if (serialCountEl) serialCountEl.textContent = serialCount;
-        if (bleCountEl) bleCountEl.textContent = bleCount;
-    };
-
-    window.showUsageModal = function () {
-        const modal = document.getElementById('usage-modal');
-        const socketioUrlModal = document.getElementById('socketio-url-modal');
-        if (socketioUrlModal) {
-            socketioUrlModal.textContent = serverUrl;
-        }
-        modal.classList.add('active');
-    };
-
-    window.closeUsageModal = function () {
-        const modal = document.getElementById('usage-modal');
-        modal.classList.remove('active');
-        localStorage.setItem('usageModalSeen', 'true');
-    };
-
-    // ========================================
-    // SESSION MANAGEMENT
-    // ========================================
-    // Save and load connection configurations as JSON files
-
-    /**
-     * Saves the current connections to a JSON file
-     * Exports connection names, types, ports, and settings
-     * Does NOT save runtime state (connected/disconnected status)
-     */
-    window.saveSession = function () {
-        console.log('Saving session...');
-
-        // Create configuration object
-        const config = {
-            version: '1.0',
-            timestamp: new Date().toISOString(),
-            connections: {}
+    // Extract connection configurations (exclude runtime state)
+    for (const id in connections) {
+        const conn = connections[id];
+        config.connections[id] = {
+            name: conn.name,
+            type: conn.type
         };
 
-        // Extract connection configurations (exclude runtime state)
-        for (const id in connections) {
-            const conn = connections[id];
-            config.connections[id] = {
-                name: conn.name,
-                type: conn.type
-            };
-
-            // Add type-specific configuration
-            if (conn.type === 'serial') {
-                config.connections[id].port = conn.port;
-                config.connections[id].baudRate = conn.baudRate || 9600;
-            } else if (conn.type === 'ble') {
-                config.connections[id].deviceId = conn.deviceId;
-                config.connections[id].deviceName = conn.deviceName;
-                config.connections[id].profile = conn.profile;
-            }
+        // Add type-specific configuration
+        if (conn.type === 'serial') {
+            config.connections[id].port = conn.port;
+            config.connections[id].baudRate = conn.baudRate || 9600;
+        } else if (conn.type === 'ble') {
+            config.connections[id].deviceId = conn.deviceId;
+            config.connections[id].deviceName = conn.deviceName;
+            config.connections[id].profile = conn.profile;
         }
+    }
 
-        // Convert to JSON
-        const jsonString = JSON.stringify(config, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
+    // Convert to JSON
+    const jsonString = JSON.stringify(config, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
 
-        // Trigger download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `serial-bridge-session-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    // Trigger download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `serial-bridge-session-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
-        console.log('Session saved successfully');
-    };
+    console.log('Session saved successfully');
+};
 
-    window.loadSession = function () {
-        console.log('Loading session...');
+window.loadSession = function () {
+    console.log('Loading session...');
 
-        // Create file input
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
 
-        input.onchange = function (e) {
-            const file = e.target.files[0];
-            if (!file) return;
+    input.onchange = function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                try {
-                    const config = JSON.parse(event.target.result);
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            try {
+                const config = JSON.parse(event.target.result);
 
-                    // Validate configuration
-                    if (!config.version || !config.connections) {
-                        alert('Invalid session file format');
+                // Validate configuration
+                if (!config.version || !config.connections) {
+                    alert('Invalid session file format');
+                    return;
+                }
+
+                // Confirm before clearing existing connections
+                if (Object.keys(connections).length > 0) {
+                    if (!confirm('Loading a session will replace all current connections. Continue?')) {
                         return;
                     }
+                }
 
-                    // Confirm before clearing existing connections
-                    if (Object.keys(connections).length > 0) {
-                        if (!confirm('Loading a session will replace all current connections. Continue?')) {
-                            return;
-                        }
+                // Clear existing connections
+                const existingIds = Object.keys(connections);
+                for (const id of existingIds) {
+                    window.removeConnection(id);
+                }
+
+                // Load connections from config
+                for (const id in config.connections) {
+                    const connConfig = config.connections[id];
+
+                    // Create connection object
+                    connections[id] = {
+                        status: 'disconnected',
+                        type: connConfig.type,
+                        name: connConfig.name,
+                        port: connConfig.port || null,
+                        baudRate: connConfig.baudRate || 9600,
+                        deviceId: connConfig.deviceId || null,
+                        deviceName: connConfig.deviceName || null,
+                        profile: connConfig.profile || 'generic_uart'
+                    };
+
+                    // Create UI card
+                    const emptyState = document.getElementById('empty-state');
+                    if (emptyState) {
+                        emptyState.style.display = 'none';
                     }
 
-                    // Clear existing connections
-                    const existingIds = Object.keys(connections);
-                    for (const id of existingIds) {
-                        window.removeConnection(id);
-                    }
+                    const connectionsDiv = document.getElementById('connections');
+                    if (!connectionsDiv) continue;
 
-                    // Load connections from config
-                    for (const id in config.connections) {
-                        const connConfig = config.connections[id];
+                    const connectionCard = document.createElement('div');
+                    connectionCard.className = 'connection-card';
+                    connectionCard.id = 'card_' + id;
+                    connectionCard.setAttribute('draggable', 'true');
 
-                        // Create connection object
-                        connections[id] = {
-                            status: 'disconnected',
-                            type: connConfig.type,
-                            name: connConfig.name,
-                            port: connConfig.port || null,
-                            baudRate: connConfig.baudRate || 9600,
-                            deviceId: connConfig.deviceId || null,
-                            deviceName: connConfig.deviceName || null,
-                            profile: connConfig.profile || 'generic_uart'
-                        };
+                    // Drag Events
+                    connectionCard.addEventListener('dragstart', () => {
+                        setTimeout(() => {
+                            connectionCard.classList.add('dragging');
+                        }, 0);
+                    });
 
-                        // Create UI card
-                        const emptyState = document.getElementById('empty-state');
-                        if (emptyState) {
-                            emptyState.style.display = 'none';
-                        }
+                    connectionCard.addEventListener('dragend', () => {
+                        connectionCard.classList.remove('dragging');
+                    });
 
-                        const connectionsDiv = document.getElementById('connections');
-                        if (!connectionsDiv) continue;
-
-                        const connectionCard = document.createElement('div');
-                        connectionCard.className = 'connection-card';
-                        connectionCard.id = 'card_' + id;
-                        connectionCard.setAttribute('draggable', 'true');
-
-                        // Drag Events
-                        connectionCard.addEventListener('dragstart', () => {
-                            setTimeout(() => {
-                                connectionCard.classList.add('dragging');
-                            }, 0);
-                        });
-
-                        connectionCard.addEventListener('dragend', () => {
-                            connectionCard.classList.remove('dragging');
-                        });
-
-                        // Build HTML based on type
-                        let html = `
+                    // Build HTML based on type
+                    let html = `
                             <div class="card-header">
                                 <div class="card-title">
                                     <input type="text" class="card-title-input" value="${connConfig.name}" onchange="window.updateConnectionName('${id}', this.value)">
@@ -2063,112 +2068,112 @@
                             </div>
                         `;
 
-                        connectionCard.innerHTML = html;
-                        connectionsDiv.appendChild(connectionCard);
+                    connectionCard.innerHTML = html;
+                    connectionsDiv.appendChild(connectionCard);
 
-                        connectionCard.innerHTML = html;
-                        connectionsDiv.appendChild(connectionCard);
+                    connectionCard.innerHTML = html;
+                    connectionsDiv.appendChild(connectionCard);
 
-                        // Initialize input width
-                        const idInput = document.getElementById('id_input_' + id);
-                        if (idInput) window.resizeInput(idInput);
+                    // Initialize input width
+                    const idInput = document.getElementById('id_input_' + id);
+                    if (idInput) window.resizeInput(idInput);
 
-                        // If serial type, update port selection
-                        if (connConfig.type === 'serial' && connConfig.port) {
-                            const portSelect = document.getElementById('port_' + id);
-                            if (portSelect) {
-                                // Add the saved port as an option if it doesn't exist
-                                let optionExists = false;
-                                for (let i = 0; i < portSelect.options.length; i++) {
-                                    if (portSelect.options[i].value === connConfig.port) {
-                                        optionExists = true;
-                                        break;
-                                    }
+                    // If serial type, update port selection
+                    if (connConfig.type === 'serial' && connConfig.port) {
+                        const portSelect = document.getElementById('port_' + id);
+                        if (portSelect) {
+                            // Add the saved port as an option if it doesn't exist
+                            let optionExists = false;
+                            for (let i = 0; i < portSelect.options.length; i++) {
+                                if (portSelect.options[i].value === connConfig.port) {
+                                    optionExists = true;
+                                    break;
                                 }
-                                if (!optionExists) {
-                                    const option = document.createElement('option');
-                                    option.value = connConfig.port;
-                                    option.textContent = connConfig.port;
-                                    portSelect.appendChild(option);
-                                }
-                                portSelect.value = connConfig.port;
                             }
-
-                            const baudSelect = document.getElementById('baud_' + id);
-                            if (baudSelect) {
-                                baudSelect.value = connConfig.baudRate;
+                            if (!optionExists) {
+                                const option = document.createElement('option');
+                                option.value = connConfig.port;
+                                option.textContent = connConfig.port;
+                                portSelect.appendChild(option);
                             }
+                            portSelect.value = connConfig.port;
                         }
 
-                        // If BLE type, update profile selection
-                        if (connConfig.type === 'ble' && connConfig.profile) {
-                            const profileSelect = document.getElementById('ble_profile_' + id);
-                            if (profileSelect) {
-                                profileSelect.value = connConfig.profile;
-                            }
+                        const baudSelect = document.getElementById('baud_' + id);
+                        if (baudSelect) {
+                            baudSelect.value = connConfig.baudRate;
                         }
                     }
 
-                    console.log('Session loaded successfully');
-                    alert('Session loaded successfully!');
-
-                } catch (error) {
-                    console.error('Error loading session:', error);
-                    alert('Error loading session file: ' + error.message);
+                    // If BLE type, update profile selection
+                    if (connConfig.type === 'ble' && connConfig.profile) {
+                        const profileSelect = document.getElementById('ble_profile_' + id);
+                        if (profileSelect) {
+                            profileSelect.value = connConfig.profile;
+                        }
+                    }
                 }
-            };
 
-            reader.readAsText(file);
+                console.log('Session loaded successfully');
+                alert('Session loaded successfully!');
+
+            } catch (error) {
+                console.error('Error loading session:', error);
+                alert('Error loading session file: ' + error.message);
+            }
         };
 
-        input.click();
+        reader.readAsText(file);
     };
 
-    // Show usage modal on first load
-    if (!localStorage.getItem('usageModalSeen')) {
-        setTimeout(() => {
-            window.showUsageModal();
-        }, 500);
-    }
+    input.click();
+};
 
-    // Debug helper
-    window.debugConnections = function () {
-        console.log('Current Connections:', connections);
-        console.log('Keys:', Object.keys(connections));
-    };
+// Show usage modal on first load
+if (!localStorage.getItem('usageModalSeen')) {
+    setTimeout(() => {
+        window.showUsageModal();
+    }, 500);
+}
 
-    window.copyCode = async function (btn) {
-        const wrapper = btn.closest('.code-snippet-wrapper');
-        if (!wrapper) return;
+// Debug helper
+window.debugConnections = function () {
+    console.log('Current Connections:', connections);
+    console.log('Keys:', Object.keys(connections));
+};
 
-        const codeBlock = wrapper.querySelector('code');
-        if (!codeBlock) return;
+window.copyCode = async function (btn) {
+    const wrapper = btn.closest('.code-snippet-wrapper');
+    if (!wrapper) return;
 
-        const text = codeBlock.innerText;
+    const codeBlock = wrapper.querySelector('code');
+    if (!codeBlock) return;
 
-        try {
-            await navigator.clipboard.writeText(text);
+    const text = codeBlock.innerText;
 
-            // Visual feedback
-            const originalIcon = btn.innerHTML;
-            btn.innerHTML = `
+    try {
+        await navigator.clipboard.writeText(text);
+
+        // Visual feedback
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
             `;
-            btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
-            btn.style.background = 'rgba(16, 185, 129, 0.1)';
+        btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+        btn.style.background = 'rgba(16, 185, 129, 0.1)';
 
-            setTimeout(() => {
-                btn.innerHTML = originalIcon;
-                btn.style.borderColor = '';
-                btn.style.background = '';
-            }, 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
-        }
-    };
+        setTimeout(() => {
+            btn.innerHTML = originalIcon;
+            btn.style.borderColor = '';
+            btn.style.background = '';
+        }, 2000);
+    } catch (err) {
+        console.error('Failed to copy:', err);
+    }
+};
 
-    console.log('Serial Bridge JavaScript loaded successfully');
+console.log('Serial Bridge JavaScript loaded successfully');
 
-})();
+}) ();
