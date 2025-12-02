@@ -161,19 +161,21 @@ function createServer() {
             // Store the connection for later reference
             connections.set(id, { port: serialPort, parser });
 
-            // Open the port and respond to the client
-            serialPort.open((err) => {
-                if (err) {
-                    console.error('Failed to open port ' + id + ':', err);
-                    res.status(500).json({ error: err.message });
-                } else {
-                    res.json({ success: true });
-                }
-            });
+            // Port is already opened by the await above
+            res.json({ success: true });
 
         } catch (error) {
             console.error('Failed to connect ' + id + ':', error);
-            res.status(500).json({ error: error.message });
+
+            // Check for specific error messages to provide better feedback
+            if (error.message && (error.message.includes('Access denied') || error.message.includes('Resource busy'))) {
+                res.status(500).json({
+                    error: error.message,
+                    errorType: 'PORT_BUSY'
+                });
+            } else {
+                res.status(500).json({ error: error.message });
+            }
         }
     });
 
