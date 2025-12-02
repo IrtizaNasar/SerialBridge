@@ -1399,3 +1399,151 @@ body {
 .data-preview {
     margin-top: 0 !important;
 }
+
+/* Custom Error Modal Styles */
+.modal-card.error-card {
+    max-width: 500px;
+    /* Widened from 420px */
+    background: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 24px 48px -12px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 36px;
+    /* Increased padding */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    /* Enforce font */
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    /* Center vertically */
+    justify-content: flex-start;
+    /* Changed from space-between */
+    margin-bottom: 24px;
+    /* Increased margin for vertical spacing */
+    /* Reduced margin */
+    gap: 16px;
+    /* Reduced gap */
+}
+
+.modal-icon.error-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+.modal-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1.3;
+    /* Removed padding-top */
+}
+
+/* Removed .modal-close-btn styles */
+
+.modal-body {
+    margin-bottom: 32px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    line-height: 1.6;
+    padding-left: 64px;
+    /* Adjusted alignment */
+    padding-right: 24px;
+    /* Added to balance whitespace */
+    /* Removed margin-top */
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-left: 64px;
+    /* Adjusted alignment */
+}
+
+.modal-footer .btn {
+    min-width: auto;
+    padding: 10px 24px;
+    font-size: 13px;
+    background: #ffffff;
+    color: #000000;
+    border: none;
+    font-weight: 600;
+}
+
+.modal-footer .btn:hover {
+    background: #e5e5e5;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.modal-footer .btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.modal-footer .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Animation for modal */
+.modal-card {
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    /* Lighter opacity */
+    backdrop-filter: blur(4px);
+    /* Lighter blur */
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+    display: flex;
+    opacity: 1;
+}

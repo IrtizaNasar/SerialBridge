@@ -112,6 +112,17 @@ function createServer() {
                 autoOpen: false  // We'll open it manually to handle errors better
             });
 
+            // Open the port manually to catch immediate errors (like Access Denied)
+            await new Promise((resolve, reject) => {
+                serialPort.open((err) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+
             // Create a parser to split incoming data by newlines
             // This ensures we get complete messages, not partial data
             const parser = serialPort.pipe(new ReadlineParser({ delimiter: '\n' }));
@@ -216,6 +227,7 @@ function createServer() {
         }
     });
 
+
     io.on('connection', (socket) => {
         console.log('Client connected');
 
@@ -272,6 +284,7 @@ function createServer() {
     server = httpServer;
     tryStartServer(serverPort);
 }
+
 
 function createWindow() {
     mainWindow = new BrowserWindow({

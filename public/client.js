@@ -1639,7 +1639,30 @@
                 console.error('Connection failed:', error);
                 connectBtn.textContent = 'Connect';
                 connectBtn.disabled = false;
-                alert('Connection failed: ' + error.message);
+
+                // Check for the specific "Port Busy" error type we added in main.js
+                // We need to parse the error message if it came from our fetch call
+                // The fetch throws an Error(result.error), but we can't easily attach extra props to the Error object
+                // So we'll check the error message text or handle it differently.
+                // Actually, let's look at how we threw the error: throw new Error(result.error);
+                // We lost the errorType there. Let's fix the throw first.
+
+                // Wait, I can't fix the throw inside this replacement block easily without changing more code.
+                // Let's adjust the logic above the catch block to pass the full result object if possible,
+                // or just check the error message content since we also put the message in the error.
+
+                if (error.message.includes('Access denied') || error.message.includes('Resource busy')) {
+                    showErrorModal(
+                        'Port Busy',
+                        'This port is currently locked by another application.<br><br>' +
+                        '<strong>Troubleshooting:</strong><br>' +
+                        '1. Is the Arduino IDE Serial Monitor open? Close it.<br>' +
+                        '2. Is another serial app running?<br>' +
+                        '3. Try unplugging and replugging the device in a different port.'
+                    );
+                } else {
+                    showErrorModal('Connection Failed', error.message);
+                }
             }
         } else {
             try {
@@ -1648,9 +1671,47 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: id })
                 });
+                // UI update happens via socket event
             } catch (error) {
                 console.error('Disconnect failed:', error);
+                showErrorModal('Disconnect Failed', error.message);
             }
+        }
+    };
+
+    // Helper function to show custom error modal
+    window.showErrorModal = function (title, message) {
+        const modal = document.getElementById('error-modal');
+        const titleEl = document.getElementById('error-title');
+        const messageEl = document.getElementById('error-message');
+
+        if (modal && titleEl && messageEl) {
+            titleEl.textContent = title;
+            messageEl.innerHTML = message; // Use innerHTML to support <br> and <strong>
+            modal.classList.add('active');
+        } else {
+            // Fallback if modal elements are missing
+            alert(title + '\n\n' + message.replace(/<br>/g, '\n').replace(/<\/?[^>]+(>|$)/g, ""));
+        }
+    };
+
+    window.closeErrorModal = function () {
+        const modal = document.getElementById('error-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    };
+
+    // Close modal when clicking outside
+    window.onclick = function (event) {
+        const errorModal = document.getElementById('error-modal');
+        const usageModal = document.getElementById('usage-modal');
+
+        if (event.target === errorModal) {
+            window.closeErrorModal();
+        }
+        if (event.target === usageModal) {
+            window.closeUsageModal();
         }
     };
 
