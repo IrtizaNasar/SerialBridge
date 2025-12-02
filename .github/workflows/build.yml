@@ -1,4 +1,4 @@
-name: Build and Release
+name: V2 Build and Release
 
 on:
   push:
