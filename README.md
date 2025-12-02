@@ -803,7 +803,19 @@ npm start
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details
+**Serial Bridge** is dual-licensed:
+
+1.  **Open Source (GPLv3)**:
+    *   Free to use for personal projects, research, education, and open-source applications.
+    *   If you distribute a project that uses Serial Bridge, you must also open-source your project under GPLv3.
+    *   You must preserve the author's copyright and attribution.
+
+2.  **Commercial License**:
+    *   Required if you wish to use Serial Bridge in a proprietary (closed-source) commercial product.
+    *   Allows you to keep your source code private.
+    *   Contact **Irtiza Nasar** (<irtizanasar@gmail.com>) for commercial licensing inquiries.
+
+Copyright © 2024 Irtiza Nasar. All rights reserved.
 
 ## Contributors
 
