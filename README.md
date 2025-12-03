@@ -654,6 +654,9 @@ There are two ways to use Bluetooth with Serial Bridge, depending on your hardwa
 SerialBridge/
 ├── main.js                 # Electron main process & Express server
 ├── preload.js              # Electron preload script for IPC
+├── notch-manager.js        # Logic for macOS Dynamic Notch notifications
+├── settings-manager.js     # Persistent settings management
+├── entitlements.mac.plist  # macOS security entitlements (Network/Bluetooth)
 ├── public/                 # Bridge application UI & client library
 │   ├── index.html          # Main application interface
 │   ├── styles.css          # Application styling
@@ -662,13 +665,16 @@ SerialBridge/
 ├── examples/               # Example projects & Arduino sketches
 │   ├── p5js-sketches/      # P5.js visualization examples
 │   └── arduino-sketches/   # Arduino code examples
-└── assets/                 # Application icons & documentation images
+├── assets/                 # Application icons & documentation images
+├── scripts/                # Build and utility scripts
+└── dist/                   # Compiled application output
 ```
 
 ### Key Files
 
 - **main.js**: Server-side logic for serial port communication and WebSocket handling
 - **client.js**: Browser-side UI for managing connections
+- **notch-manager.js**: Handles the floating notification window on macOS
 - **serial-bridge.js**: Simple API library that P5.js projects use to receive data
 
 ## Configuration
