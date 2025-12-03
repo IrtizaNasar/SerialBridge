@@ -28,6 +28,7 @@
 - **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
 - **Smart Error Handling**: Intelligent detection of "Port Busy" states (USB) with actionable troubleshooting steps.
+- **Dynamic Notch Notifications (macOS Only)**: Native-style notifications that integrate with your MacBook's notch for connection status updates.
 
 ## Table of Contents
 
@@ -42,6 +43,7 @@
   - [Muse 2 Support](#muse-2-support)
 - [API Reference](#api-reference)
 - [Session Management](#session-management)
+- [Dynamic Notch Notifications (macOS Only)](#dynamic-notch-notifications-macos-only)
 - [Examples](#examples)
   - [Bluetooth Setup](#bluetooth-setup)
 - [Project Structure](#project-structure)
@@ -330,6 +332,11 @@ bridge.onData("device_1", (data) => {
 });
 ```
 
+});
+```
+
+
+
 ## API Reference
 
 ### Basic Usage (Most Common)
@@ -550,7 +557,43 @@ Sessions are saved as human-readable JSON files:
     }
   }
 }
+  }
+}
 ```
+
+## Dynamic Notch Notifications (macOS Only)
+
+**Serial Bridge** integrates with the design of the hardware notch on modern MacBooks to provide unobtrusive, native-feeling status updates.
+
+<img width="600" alt="Dynamic Notch Example" src="assets/docs/notch-example.png" />
+
+### How it Works
+When you connect or disconnect a device, a sleek notification slides down from the notch (or top of screen) to confirm the action.
+
+| State | Color | Description |
+| :--- | :--- | :--- |
+| **Connected** | <span style="color: #4CD964">●</span> Green | Successful connection established |
+| **Disconnected** | <span style="color: #FF3B30">●</span> Red | Device unplugged or connection failed |
+| **Reconnecting** | <span style="color: #FFD60A">●</span> Yellow | Attempting to restore lost connection |
+
+It is designed to be:
+- **Unobtrusive**: Appears over fullscreen apps (like VS Code or P5.js sketches) without stealing focus.
+- **Smart**: Automatically hides after 3 seconds to keep your workspace clean.
+
+> [!NOTE]
+> This feature is **hardware-exclusive**. It only activates on macOS devices with a physical notch. On Windows, Linux, or older Macs, the feature is completely disabled to save resources.
+
+### Configuration & Performance
+
+You can fully control this feature via the **Settings** menu:
+
+<img width="600" alt="Settings UI" src="assets/docs/settings-example.png" />
+
+1.  Click the **Settings** gear icon at the bottom of the sidebar.
+2.  Toggle **"Enable Dynamic Notch"** on or off.
+
+**Performance Note:**
+While the feature is designed to be extremely lightweight, disabling it will completely destroy the background notification window. This frees up memory and CPU resources, which can be useful if you are running on older hardware or need maximum performance for complex P5.js sketches.
 
 ## Examples
 
