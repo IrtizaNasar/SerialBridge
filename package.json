@@ -42,6 +42,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "notch-manager.js",
+      "settings-manager.js",
       "package.json",
       "public/**/*",
       "assets/**/*",
