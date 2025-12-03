@@ -1777,6 +1777,16 @@
                         '2. Is another serial app running?<br>' +
                         '3. Try unplugging and replugging the device in a different port.'
                     );
+                } else if (error.message.includes('No such file or directory')) {
+                    const portName = selectedPort || 'the selected port';
+                    showErrorModal(
+                        'Device Not Found',
+                        `The port <strong>${portName}</strong> could not be found.<br><br>` +
+                        '<strong>Troubleshooting:</strong><br>' +
+                        '1. Check if the USB cable is securely connected.<br>' +
+                        '2. Click <strong>Refresh Ports</strong> to update the list.<br>' +
+                        '3. Select the correct port from the dropdown.'
+                    );
                 } else {
                     showErrorModal('Connection Failed', error.message);
                 }
