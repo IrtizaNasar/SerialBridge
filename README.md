@@ -51,6 +51,7 @@
 - [Troubleshooting](#troubleshooting)
 - [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
 - [Contributing](#contributing)
+- [Privacy & Analytics](#privacy--analytics)
 - [License](#license)
 - [Contributors](#contributors)
 - [Credits](#credits)
@@ -312,6 +313,10 @@ This allows researchers and developers to build biofeedback applications without
 When using the Muse profile, data is streamed as JSON objects. You may need to parse the data if it arrives as a string.
 
 ```javascript
+// Connect to Serial Bridge
+bridge = new SerialBridge(); // Auto-detects URL from socket.io script
+
+// Listen for data from device_1
 bridge.onData("device_1", (data) => {
     // Parse if string, otherwise use directly
     let parsed = typeof data === 'string' ? JSON.parse(data) : data;
@@ -836,6 +841,29 @@ npm start
 - Follow existing code formatting
 - Test with multiple Arduinos when possible
 
+## Privacy & Analytics
+
+Serial Bridge uses **Aptabase**, a privacy-first analytics platform, to collect anonymous usage data. This helps us understand how the tool is used and prioritize new features.
+
+### What We Collect
+- **App Version & OS**: (e.g., macOS 14.2, Windows 11)
+- **Session Duration**: How long the app is open.
+- **Connection Type**: Whether you are using USB or Bluetooth (we do NOT see your data).
+- **Errors**: Crash reports to help us fix bugs.
+
+### What We Do NOT Collect
+- **No Personal Data**: No IP addresses, names, or emails.
+- **No Serial Data**: We never see the sensor data you send or receive.
+- **No File Access**: We cannot see your P5.js sketches or Arduino code.
+
+### Opt-Out
+You can disable analytics at any time:
+1. Click the **Settings** (gear icon) in the sidebar.
+2. Toggle **"Share Anonymous Analytics"** to OFF.
+3. The app will immediately stop sending any data.
+
+
+
 ### Submitting Changes
 
 1. Fork the repository
@@ -874,6 +902,7 @@ Built with:
 - [Express](https://expressjs.com/) - Web server
 - [Socket.IO](https://socket.io/) - WebSocket communication
 - [SerialPort](https://serialport.io/) - Serial port access
+- [Aptabase](https://aptabase.com/) - Privacy-first analytics
 - [ArduinoBLE](https://www.arduino.cc/reference/en/libraries/arduinoble/) - Bluetooth Low Energy support
 
 Designed for use with [P5.js](https://p5js.org/) - a friendly tool for learning to code and make art.

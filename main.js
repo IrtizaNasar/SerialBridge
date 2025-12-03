@@ -24,10 +24,17 @@ const { ReadlineParser } = require('@serialport/parser-readline');
 const http = require('http');
 const socketIo = require('socket.io');
 
-// Global variables
-let mainWindow;              // The Electron browser window
-let server;                  // HTTP server instance
-let io;                      // Socket.IO instance for WebSocket communication
+// Import Notch Manager (Mac Only)
+const { initNotch, enableNotch, disableNotch, hasNotch } = require('./notch-manager');
+
+// Import Settings Manager
+const { loadSettings, saveSettings, updateSetting } = require('./settings-manager');
+const { initialize, trackEvent } = require('@aptabase/electron/main');
+
+// Initialize Aptabase IMMEDIATELY (Before app is ready)
+console.log('Initializing Aptabase with key: A-EU-1148008968');
+initialize('A-EU-9940066759');
+
 let connections = new Map(); // Stores active serial port connections (id -> {port, parser})
 let serverPort = 3000;       // Default server port (will auto-increment if busy)
 let bluetoothCallback = null; // Callback for Bluetooth device selection
@@ -344,6 +351,15 @@ function createWindow() {
         }
         return { action: 'allow' };
     });
+    // Handle external links
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http:') || url.startsWith('https:')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
+
     // Handle Bluetooth device selection
     mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
         event.preventDefault();
@@ -432,11 +448,29 @@ app.whenReady().then(() => {
     }, 1000);
 
     // Initialize Settings
-    const { loadSettings, updateSetting } = require('./settings-manager');
+    const { loadSettings, saveSettings, updateSetting } = require('./settings-manager');
+    // Aptabase initialized at top level
+
     const settings = loadSettings();
+    console.log('Analytics Enabled:', settings.analyticsEnabled);
+
+    // Track App Launch if enabled
+    if (settings.analyticsEnabled) {
+        console.log('Tracking app_started event...');
+        trackEvent('app_started', {
+            os: process.platform,
+            version: app.getVersion(),
+            arch: process.arch
+        }).then(() => {
+            console.log('App Started event sent successfully');
+        }).catch(err => {
+            console.error('Failed to send App Started event:', err);
+        });
+    } else {
+        console.log('Analytics disabled, skipping app_started event.');
+    }
 
     // Initialize Dynamic Notch (macOS Only)
-    const { initNotch, enableNotch, disableNotch } = require('./notch-manager');
     initNotch(ipcMain, settings.notchEnabled);
 
     // Settings IPC Handlers
@@ -445,25 +479,90 @@ app.whenReady().then(() => {
     });
 
     ipcMain.handle('has-notch', () => {
-        const { hasNotch } = require('./notch-manager');
         return hasNotch();
     });
 
-    ipcMain.on('update-setting', (event, { key, value }) => {
-        const newSettings = updateSetting(key, value);
+    // Handle Settings Updates
+    ipcMain.handle('update-setting', (event, key, value) => {
+        try {
+            console.log(`[SETTINGS] Updating ${key} to ${value}`);
+            const newSettings = updateSetting(key, value);
 
-        // Handle Notch Toggle Side Effects
-        if (key === 'notchEnabled') {
-            if (value) {
-                enableNotch();
-            } else {
-                disableNotch();
+            // Handle specific side effects
+            if (key === 'notchEnabled') {
+                if (value) enableNotch();
+                else disableNotch();
+            }
+
+            if (key === 'analyticsEnabled') {
+                if (value) trackEvent('analytics_opt_in');
+                else trackEvent('analytics_opt_out');
+            }
+
+            // Broadcast new settings to all windows
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('settings-updated', newSettings);
+            }
+
+            return newSettings;
+        } catch (error) {
+            console.error('[SETTINGS] Error updating setting:', error);
+            throw error;
+        }
+    });
+
+    // Handle Analytics Events from Renderer
+    ipcMain.handle('track-event', async (event, eventName, props) => {
+        console.log(`[ANALYTICS] Received event from renderer: ${eventName}`, props);
+        const settings = loadSettings();
+        console.log(`[ANALYTICS] Enabled: ${settings.analyticsEnabled}`);
+
+        if (settings.analyticsEnabled) {
+            try {
+                await trackEvent(eventName, props);
+                console.log(`[ANALYTICS] Sent ${eventName} to Aptabase`);
+            } catch (err) {
+                console.error(`[ANALYTICS] Failed to send ${eventName}:`, err);
             }
         }
+    });
 
-        // Broadcast new settings to all windows (optional, but good practice)
-        if (mainWindow) {
-            mainWindow.webContents.send('settings-updated', newSettings);
+    // Track App Quit
+    // Explicitly close Notch Window on quit to prevent zombies
+    app.on('before-quit', () => {
+        disableNotch();
+        const settings = loadSettings();
+        if (settings.analyticsEnabled) {
+            trackEvent('app_quit');
+        }
+    });
+
+    // Global Error Tracking (Main Process)
+    process.on('uncaughtException', (error) => {
+        const settings = loadSettings();
+        if (settings.analyticsEnabled) {
+            // Sanitize stack to remove user paths
+            const cleanStack = error.stack
+                ? error.stack.split('\n')[0].replace(os.homedir(), '~')
+                : 'No stack';
+
+            trackEvent('error', {
+                process: 'main',
+                type: 'uncaughtException',
+                message: error.message,
+                stack: cleanStack
+            });
+        }
+    });
+
+    process.on('unhandledRejection', (reason) => {
+        const settings = loadSettings();
+        if (settings.analyticsEnabled) {
+            trackEvent('error', {
+                process: 'main',
+                type: 'unhandledRejection',
+                message: reason instanceof Error ? reason.message : String(reason)
+            });
         }
     });
 });

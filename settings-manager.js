@@ -6,7 +6,8 @@ const userDataPath = app.getPath('userData');
 const settingsPath = path.join(userDataPath, 'settings.json');
 
 const defaultSettings = {
-    notchEnabled: true
+    notchEnabled: true,
+    analyticsEnabled: true
 };
 
 function loadSettings() {

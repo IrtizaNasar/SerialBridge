@@ -10,6 +10,8 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-user-select: none;
     user-select: none;
+    pointer-events: none !important;
+    /* CRITICAL: Ensure clicks pass through */
 }
 
 .notch {

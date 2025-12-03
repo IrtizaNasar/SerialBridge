@@ -35,26 +35,75 @@ const hasNotch = () => {
 
 /**
  * Triggers the notch notification
+/**
  */
 function showNotch(type, message, icon) {
-    if (!hasNotch()) return; // Safety check
+    // Safety check: If notch is disabled or window destroyed, do nothing.
+    if (!notchWindow || notchWindow.isDestroyed()) return;
+
+    const targetDisplay = getInternalDisplay();
+    if (!targetDisplay) {
+        console.log('[Notch] No internal display found');
+        return;
+    }
+
+    // 1. Move On-Screen and Resize
+    try {
+        const { x, y, width } = targetDisplay.bounds;
+        const expandedWidth = 600;
+        const expandedHeight = 200;
+        const newX = x + Math.round((width - expandedWidth) / 2);
+
+        notchWindow.setBounds({
+            x: newX,
+            y: y + 30, // Position right below the notch
+            width: expandedWidth,
+            height: expandedHeight
+        });
+
+        // Force Dock to stay visible (Safety for Panel type)
+        if (process.platform === 'darwin') app.dock.show();
+
+        // Ensure visible and click-through
+        notchWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+        notchWindow.setAlwaysOnTop(true, 'pop-up-menu'); // 'pop-up-menu' works best with skipTaskbar
+
+        notchWindow.showInactive();
+
+        // CRITICAL: Must forward events to window below!
+        notchWindow.setIgnoreMouseEvents(true, { forward: true });
+    } catch (e) {
+        console.error('[Notch] Error resizing for show:', e);
+    }
+
     if (notchWindow && !notchWindow.isDestroyed()) {
         notchWindow.webContents.send('trigger-notch', { type, message, icon });
     }
+
+    // 2. Schedule Hide (Off-Screen)
+    setTimeout(() => {
+        if (notchWindow && !notchWindow.isDestroyed()) {
+            try {
+                // Move OFF-SCREEN and hide
+                const { x } = targetDisplay.bounds;
+                notchWindow.setPosition(x, -10000);
+                notchWindow.setSize(1, 1); // Minimize footprint
+                notchWindow.hide();
+            } catch (e) {
+                console.error('[Notch] Error hiding:', e);
+            }
+        }
+    }, 3500); // Slightly longer than the client-side 3000ms hide timeout
 }
 
 /**
  * Initializes the Dynamic Notch feature if hardware is compatible.
- * @param {Electron.IpcMain} ipcMain 
+ * @param {Electron.IpcMain} ipcMain
  */
 function initNotch(ipcMain, shouldEnable = true) {
     // 1. Hardware Check
     if (!hasNotch()) {
         console.log('[Notch] Hardware not compatible (No notch or not macOS). Feature disabled.');
-        return;
-    }
-    if (!hasNotch()) {
-        console.log('[Notch] Hardware not compatible or not a Mac. Skipping.');
         return;
     }
 
@@ -68,7 +117,6 @@ function initNotch(ipcMain, shouldEnable = true) {
     // 3. Delayed Window Creation
     // Wait for main window to be created first (1000ms in main.js)
     // We wait 2000ms here to ensure app icon is established.
-    // Helper to find the built-in display
     // Helper to find the built-in display
     // Made global to scope so enableNotch can use it
     getInternalDisplay = () => {
@@ -107,26 +155,31 @@ function initNotch(ipcMain, shouldEnable = true) {
                 }
 
                 const { x, y, width } = targetDisplay.bounds;
-                const windowWidth = 600;
+
+                // If the window is currently hidden (idle), keep it off-screen!
+                if (!notchWindow.isVisible()) {
+                    notchWindow.setPosition(x, -10000);
+                    notchWindow.setSize(1, 1); // Minimize footprint
+                    return;
+                }
+
+                // If visible, update its position on screen
+                const windowWidth = 600; // Expanded width
+                const windowHeight = 200;
                 const newX = x + Math.round((width - windowWidth) / 2);
-                const newY = y; // Top of the target display
+                const newY = y;
 
                 notchWindow.setPosition(newX, newY);
-                notchWindow.setSize(windowWidth, 200);
+                notchWindow.setSize(windowWidth, windowHeight);
 
-                // Ensure it's visible if we found a display (e.g. lid opened)
-                if (!notchWindow.isVisible()) {
-                    console.log('[Notch] Internal display detected. Showing notch.');
-                    notchWindow.setSkipTaskbar(true);
-                    notchWindow.showInactive();
-                }
+                // CRITICAL: Re-apply click-through after move/resize
+                notchWindow.setIgnoreMouseEvents(true, { forward: true });
             } catch (error) {
                 console.error('[Notch] Error repositioning notch:', error);
             }
         }, 500); // Debounce by 500ms to handle burst events
     };
 
-    // Handle display changes immediately
     // Handle display changes immediately
     // screen.on('display-metrics-changed', repositionNotch); // Moved to enableNotch
     // screen.on('display-added', repositionNotch);
@@ -153,31 +206,53 @@ function createNotchWindow() {
     }
 
     // Create the browser window
+    // ARCHITECTURE NOTE:
+    // This configuration is the result of extensive testing to solve specific macOS behaviors:
+    // 1. type: 'panel' -> Required to float over fullscreen apps (VS Code, etc.) without being hidden.
+    // 2. skipTaskbar: true -> Critical! Decouples the window from the main app's "Space".
+    //    Without this, showing the notch forces macOS to switch back to the Desktop space.
+    // 3. app.dock.show() -> The Counter-Move. 'skipTaskbar: true' on a Panel often hides the Main App's Dock icon.
+    //    We explicitly call app.dock.show() in showNotch() to force the icon to stay visible.
+    // 4. focusable: false -> Ensures the notification never steals keyboard focus.
+    // 5. y + 30 -> Positions the window exactly below the hardware notch (approx 30px height).
     notchWindow = new BrowserWindow({
-        width: 600,
-        height: 200,
+        width: 160,
+        height: 50,
+        x: 0,
+        y: -1000, // Start OFF-SCREEN
         frame: false,
         transparent: true,
         alwaysOnTop: true,
         resizable: false,
         hasShadow: false,
         show: false,
-        skipTaskbar: true,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
         },
         backgroundColor: '#00000000',
-        type: 'panel', // Helps with floating behavior on macOS
-        fullscreenable: false, // Critical: prevents the window from trying to be a space itself
+        type: 'panel', // RESTORED: Needed for correct layering (fixes "screenshot but invisible" bug)
+        focusable: false, // Critical: Never take focus
+        // vibrancy: 'hud', // REMOVED: Caused gray box
+        skipTaskbar: true, // CRITICAL: Fixes "Space Switch" issue. Decouples window from main app space.
+        hiddenInMissionControl: true, // REQUIRED: Allows floating over fullscreen apps
+        fullscreenable: false, // Critical: Prevent window from becoming a space
+        enableLargerThanScreen: true, // Allow positioning off-screen
         title: '' // Explicitly empty title to prevent "serial-bridge" in Dock menu
     });
+
+    // CRITICAL: Ignore all mouse events PERMANENTLY.
+    // The notch is a passive visual indicator. It should NEVER block clicks.
+    notchWindow.setIgnoreMouseEvents(true, { forward: true });
 
     notchWindow.loadFile(path.join(__dirname, 'public', 'notch.html'));
 
     notchWindow.once('ready-to-show', () => {
         // Force Dock to stay visible (fix for panel type hiding it)
-        if (process.platform === 'darwin') app.dock.show();
+        if (process.platform === 'darwin') {
+            app.dock.show();
+            app.setActivationPolicy('regular'); // CRITICAL: Prevent app from becoming "Accessory"
+        }
 
         // Configure for fullscreen visibility ONCE
         notchWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -190,20 +265,17 @@ function createNotchWindow() {
         // Initial Position
         repositionNotch();
 
-        // Small delay to ensure CSS is fully parsed and transparency is active
-        setTimeout(() => {
-            // Only show if we have a valid target display
-            if (getInternalDisplay()) {
-                notchWindow.setSkipTaskbar(true); // Ensure it stays out of Dock
-                notchWindow.showInactive();
-            }
-        }, 100);
+        // Note: We do NOT show it here anymore. It stays hidden until triggered.
     });
 }
 
 const enableNotch = () => {
     if (!hasNotch()) return;
-    if (notchWindow && !notchWindow.isDestroyed()) return; // Already active
+
+    // Force recreation to ensure latest options are applied
+    if (notchWindow && !notchWindow.isDestroyed()) {
+        notchWindow.close();
+    }
 
     createNotchWindow();
 
@@ -217,15 +289,29 @@ const enableNotch = () => {
 };
 
 const disableNotch = () => {
-    if (notchWindow && !notchWindow.isDestroyed()) {
-        notchWindow.close();
-        notchWindow = null;
-    }
+    console.log('[Notch] Disabling notch...');
+    try {
+        if (notchWindow) {
+            if (!notchWindow.isDestroyed()) {
+                console.log('[Notch] Closing notch window.');
+                notchWindow.close();
+            } else {
+                console.log('[Notch] Notch window was already destroyed.');
+            }
+            notchWindow = null;
+        } else {
+            console.log('[Notch] No notch window to close.');
+        }
 
-    // Remove listeners to free resources
-    screen.removeListener('display-metrics-changed', repositionNotch);
-    screen.removeListener('display-added', repositionNotch);
-    screen.removeListener('display-removed', repositionNotch);
+        // Remove listeners to free resources
+        if (repositionNotch) {
+            screen.removeListener('display-metrics-changed', repositionNotch);
+            screen.removeListener('display-added', repositionNotch);
+            screen.removeListener('display-removed', repositionNotch);
+        }
+    } catch (e) {
+        console.error('[Notch] Error disabling notch:', e);
+    }
 };
 
 module.exports = { initNotch, showNotch, enableNotch, disableNotch, hasNotch };

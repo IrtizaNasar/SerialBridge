@@ -77,20 +77,8 @@
             bleBtn.addEventListener('click', addBLEConnection);
         }
 
-        // Check hardware compatibility to show/hide Settings button
-        if (ipcRenderer) {
-            try {
-                const hasNotch = await ipcRenderer.invoke('has-notch');
-                if (!hasNotch) {
-                    const settingsBtn = document.getElementById('settings-nav-btn');
-                    if (settingsBtn) {
-                        settingsBtn.style.display = 'none';
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to check notch status:', e);
-            }
-        }
+        // Settings button is now always visible for Analytics
+        // Notch logic is handled inside the modal
 
 
         // Handle BLE Device List from Main Process
@@ -499,6 +487,14 @@
                 });
             }
 
+            // Track Analytics: Device Connected (BLE)
+            if (window.electron && window.electron.ipcRenderer) {
+                window.electron.ipcRenderer.invoke('track-event', 'device_connected', {
+                    type: 'ble',
+                    profile: profileKey
+                });
+            }
+
             // Special handling for Muse 2: Send start command
             if (profile.controlCharacteristic) {
                 console.log('Muse 2: Getting Control Characteristic...');
@@ -523,7 +519,7 @@
                                 await controlChar.readValue();
                                 // console.log('Muse 2: Keep-Alive read success');
                             } catch (e) {
-                                console.warn('Muse 2: Keep-Alive failed', e);
+                                console.warn('Muse 2: Keep-Alive failed:', e);
                             }
                         } else {
                             // Stop if disconnected
@@ -566,6 +562,13 @@
                 // Use the card name (e.g. "Serial Device 1") for consistency
                 const cardName = connections[targetId].name || device.name;
                 triggerNotch('success', cardName + ' Connected', 'bluetooth');
+
+                // Track Analytics
+                if (window.electron && window.electron.ipcRenderer) {
+                    window.electron.ipcRenderer.invoke('track-event', 'bluetooth_connected', {
+                        device_name: device.name || 'Unknown'
+                    });
+                }
 
                 // Update the existing card UI
                 updateBLEUIStatus(targetId, 'connected');
@@ -631,6 +634,17 @@
             }
         } catch (error) {
             console.error('BLE Connection Error:', error);
+
+            // Track Analytics: Connection Failed (BLE)
+            if (window.electron && window.electron.ipcRenderer) {
+                window.electron.ipcRenderer.invoke('track-event', 'error', {
+                    process: 'renderer',
+                    type: 'connection_failed',
+                    connectionType: 'ble',
+                    message: error.message
+                });
+            }
+
             if (targetId) {
                 const connectBtn = document.getElementById('connect_' + targetId);
                 if (connectBtn) {
@@ -1753,8 +1767,27 @@
                 const deviceName = connections[id].name || 'Serial Device';
                 triggerNotch('success', deviceName + ' Connected', 'serial');
 
+                // Track Analytics: Device Connected (Serial)
+                if (window.electron && window.electron.ipcRenderer) {
+                    window.electron.ipcRenderer.invoke('track-event', 'device_connected', {
+                        type: 'serial',
+                        baudRate: selectedBaud
+                    });
+                }
+
             } catch (error) {
                 console.error('Connection failed:', error);
+
+                // Track Analytics: Connection Failed (Serial)
+                if (window.electron && window.electron.ipcRenderer) {
+                    window.electron.ipcRenderer.invoke('track-event', 'error', {
+                        process: 'renderer',
+                        type: 'connection_failed',
+                        connectionType: 'serial',
+                        message: error.message
+                    });
+                }
+
                 connectBtn.textContent = 'Connect';
                 connectBtn.disabled = false;
 
@@ -1864,13 +1897,24 @@
                     if (notchGroup) {
                         if (hasNotch) {
                             notchGroup.style.display = 'flex';
-                            const settings = await ipcRenderer.invoke('get-settings');
-                            const toggle = document.getElementById('notch-toggle');
-                            if (toggle) {
-                                toggle.checked = settings.notchEnabled;
-                            }
                         } else {
                             notchGroup.style.display = 'none';
+                        }
+
+                        const settings = await ipcRenderer.invoke('get-settings');
+
+                        // Sync Notch Toggle (only if visible)
+                        if (hasNotch) {
+                            const notchToggle = document.getElementById('notch-toggle');
+                            if (notchToggle) {
+                                notchToggle.checked = settings.notchEnabled;
+                            }
+                        }
+
+                        // Sync Analytics Toggle
+                        const analyticsToggle = document.getElementById('analytics-toggle');
+                        if (analyticsToggle) {
+                            analyticsToggle.checked = settings.analyticsEnabled;
                         }
                     }
                 } catch (e) {
@@ -1887,12 +1931,14 @@
         }
     };
 
-    window.toggleNotchSetting = function (checkbox) {
+    window.toggleNotchSetting = async function (checkbox) {
         if (ipcRenderer) {
-            ipcRenderer.send('update-setting', {
-                key: 'notchEnabled',
-                value: checkbox.checked
-            });
+            try {
+                await ipcRenderer.invoke('update-setting', 'notchEnabled', checkbox.checked);
+            } catch (error) {
+                console.error('Failed to update notch setting:', error);
+                checkbox.checked = !checkbox.checked;
+            }
         }
     };
 
@@ -1934,6 +1980,13 @@
                 if (connections[id] && connections[id].type !== 'ble') {
                     const deviceName = connections[id].name || 'Serial Device';
                     triggerNotch('success', deviceName + ' Connected', 'serial');
+
+                    // Track Analytics
+                    if (window.electron && window.electron.ipcRenderer) {
+                        window.electron.ipcRenderer.invoke('track-event', 'serial_connected', {
+                            port: connection.port || 'Unknown'
+                        });
+                    }
                 }
 
                 // Disable port selection
@@ -2443,4 +2496,36 @@
 
     console.log('Serial Bridge JavaScript loaded successfully');
 
+    window.toggleAnalyticsSetting = async function (checkbox) {
+        console.log('Toggling Analytics:', checkbox.checked);
+        try {
+            await window.electron.ipcRenderer.invoke('update-setting', 'analyticsEnabled', checkbox.checked);
+        } catch (error) {
+            console.error('Failed to update analytics setting:', error);
+            // Revert checkbox if failed
+            checkbox.checked = !checkbox.checked;
+        }
+    };
+
+    // Global Error Tracking (Renderer Process)
+    window.onerror = function (message, source, lineno, colno, error) {
+        if (window.electron && window.electron.ipcRenderer) {
+            window.electron.ipcRenderer.invoke('track-event', 'error', {
+                process: 'renderer',
+                message: message,
+                source: source,
+                lineno: lineno
+            });
+        }
+    };
+
+    window.onunhandledrejection = function (event) {
+        if (window.electron && window.electron.ipcRenderer) {
+            window.electron.ipcRenderer.invoke('track-event', 'error', {
+                process: 'renderer',
+                type: 'unhandledRejection',
+                message: event.reason ? event.reason.message : String(event.reason)
+            });
+        }
+    };
 })();

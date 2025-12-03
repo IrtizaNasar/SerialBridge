@@ -16,10 +16,10 @@ contextBridge.exposeInMainWorld('electron', {
                 ipcRenderer.on(channel, (event, ...args) => func(...args));
             }
         },
-        invoke: (channel, data) => {
-            let validChannels = ['get-settings', 'has-notch'];
+        invoke: (channel, ...args) => {
+            let validChannels = ['get-settings', 'has-notch', 'update-setting', 'track-event'];
             if (validChannels.includes(channel)) {
-                return ipcRenderer.invoke(channel, data);
+                return ipcRenderer.invoke(channel, ...args);
             }
         }
     }

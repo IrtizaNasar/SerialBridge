@@ -119,10 +119,14 @@
         <main class="main-content">
             <header class="main-header">
                 <h1></h1>
-                <button class="btn btn-primary" onclick="window.addConnection()">
-                    + New Connection
-                </button>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="window.addConnection()">
+                        + New Connection
+                    </button>
+                </div>
             </header>
+
+            <!-- DEBUG: Button Removed -->
 
             <div class="content-scroll-area">
                 <div class="connection-grid" id="connections">
@@ -231,6 +235,22 @@ function setup() {
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="notch-toggle" onchange="window.toggleNotchSetting(this)">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div id="analytics-settings-group" class="setting-item"
+                    style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+                    <div>
+                        <h4>Anonymous Analytics</h4>
+                        <p style="font-size: 12px; opacity: 0.7; margin-top: 4px;">
+                            Privacy-friendly. Helps us improve the app by sending anonymous usage stats.
+                            No personal data or serial data is ever collected.
+                        </p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="analytics-toggle" onchange="window.toggleAnalyticsSetting(this)"
+                            checked>
                         <span class="slider round"></span>
                     </label>
                 </div>
