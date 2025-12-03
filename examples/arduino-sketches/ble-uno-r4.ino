@@ -38,6 +38,7 @@ void setup() {
 
   // Set advertised local name and service UUID
   BLE.setLocalName("Uno R4 Bridge");
+  BLE.setDeviceName("Uno R4 Bridge"); // Helper for Windows compatibility
   BLE.setAdvertisedService(uartService);
 
   // Add characteristics to the service

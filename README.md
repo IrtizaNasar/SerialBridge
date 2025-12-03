@@ -332,8 +332,7 @@ bridge.onData("device_1", (data) => {
 });
 ```
 
-});
-```
+
 
 
 
@@ -590,7 +589,7 @@ You can fully control this feature via the **Settings** menu:
 <img width="600" alt="Settings UI" src="assets/docs/settings-example.png" />
 
 1.  Click the **Settings** gear icon at the bottom of the sidebar.
-2.  Toggle **"Enable Dynamic Notch"** on or off.
+2.  Toggle **"Dynamic Notch"** on or off.
 
 **Performance Note:**
 While the feature is designed to be extremely lightweight, disabling it will completely destroy the background notification window. This frees up memory and CPU resources, which can be useful if you are running on older hardware or need maximum performance for complex P5.js sketches.

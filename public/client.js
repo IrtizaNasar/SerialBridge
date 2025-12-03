@@ -305,7 +305,8 @@
                 // Show MAC address to help distinguish devices with same name
                 // Extract last 5 chars of MAC for brevity (e.g., "20:BF")
                 const macSuffix = device.deviceId.slice(-5);
-                option.text = `${device.deviceName} (${macSuffix})`;
+                const displayName = device.name || device.deviceName || 'Unknown Device';
+                option.text = `${displayName} (${macSuffix})`;
 
                 select.add(option);
 
