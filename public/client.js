@@ -22,6 +22,7 @@
     console.log('Serial Bridge JavaScript loading...');
 
     const socket = io();
+    const ipcRenderer = window.electron ? window.electron.ipcRenderer : null;
 
     // Helper to resize input based on content
     window.resizeInput = function (el) {
@@ -66,16 +67,31 @@
     let scanningConnectionId = null; // Tracks which card is currently scanning for BLE
 
     // IPC Renderer is exposed via preload.js as window.electron.ipcRenderer
-    const ipcRenderer = window.electron ? window.electron.ipcRenderer : null;
     console.log('Client: IPC Renderer available:', !!ipcRenderer);
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         // BLE Button Handler
         const bleBtn = document.getElementById('connect-ble-btn');
         if (bleBtn) {
             // Change to add a new BLE connection card instead of direct connect
             bleBtn.addEventListener('click', addBLEConnection);
         }
+
+        // Check hardware compatibility to show/hide Settings button
+        if (ipcRenderer) {
+            try {
+                const hasNotch = await ipcRenderer.invoke('has-notch');
+                if (!hasNotch) {
+                    const settingsBtn = document.getElementById('settings-nav-btn');
+                    if (settingsBtn) {
+                        settingsBtn.style.display = 'none';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to check notch status:', e);
+            }
+        }
+
 
         // Handle BLE Device List from Main Process
         if (ipcRenderer) {
@@ -329,9 +345,18 @@
             }
 
             // This will cause the await navigator.bluetooth.requestDevice to resolve
-            ipcRenderer.send('bluetooth-device-selected', deviceId);
+            if (window.electron && window.electron.ipcRenderer) {
+                window.electron.ipcRenderer.send('bluetooth-device-selected', deviceId);
+            }
         }
     };
+
+    // Helper to trigger notch from client
+    function triggerNotch(type, message, icon) {
+        if (window.electron && window.electron.ipcRenderer) {
+            window.electron.ipcRenderer.send('show-notch', { type, message, icon });
+        }
+    }
 
     // Handle disconnection event
     function handleDisconnect(event) {
@@ -355,16 +380,45 @@
                 connections[connectionId].keepAliveInterval = null;
             }
 
-            updateBLEUIStatus(connectionId, 'disconnected');
-            if (connections[connectionId]) {
+            // Check if this was a manual disconnect
+            if (connections[connectionId].manualDisconnect) {
+                console.log('Manual disconnect detected, not reconnecting.');
+                updateBLEUIStatus(connectionId, 'disconnected');
                 connections[connectionId].status = 'disconnected';
-            }
 
-            // Emit status to Socket.IO for p5.js and other clients
-            socket.emit('connection-status', {
-                id: connectionId,
-                status: 'disconnected'
-            });
+                // Emit status to Socket.IO
+                socket.emit('connection-status', {
+                    id: connectionId,
+                    status: 'disconnected'
+                });
+
+                const deviceName = connections[connectionId].name || 'Bluetooth Device';
+                triggerNotch('disconnect', deviceName + ' Disconnected', 'bluetooth');
+            } else {
+                // Unintentional disconnect (e.g. display plug/unplug)
+                console.log('Unintentional disconnect detected! Attempting auto-reconnect in 2s...');
+
+                // Update UI to show reconnecting state
+                updateBLEUIStatus(connectionId, 'reconnecting');
+                connections[connectionId].status = 'reconnecting';
+
+                // Trigger Notch Warning
+                const deviceName = connections[connectionId].name || 'Bluetooth Device';
+                triggerNotch('error', 'Reconnecting ' + deviceName + '...', 'bluetooth');
+
+                // Attempt Reconnect
+                setTimeout(() => {
+                    if (connections[connectionId] && connections[connectionId].status === 'reconnecting') {
+                        setupBLEDevice(device, connectionId).catch(err => {
+                            console.error('Auto-reconnect failed:', err);
+                            // If it fails, finally set to disconnected
+                            updateBLEUIStatus(connectionId, 'disconnected');
+                            connections[connectionId].status = 'disconnected';
+                            triggerNotch('disconnect', deviceName + ' Disconnected', 'bluetooth');
+                        });
+                    }
+                }, 2000);
+            }
         }
     }
 
@@ -495,7 +549,10 @@
                 console.log('Finalizing connection for ID:', targetId);
                 connections[targetId].status = 'connected';
                 connections[targetId].device = device;
-                connections[targetId].name = device.name;
+                connections[targetId].status = 'connected';
+                connections[targetId].device = device;
+                connections[targetId].manualDisconnect = false; // Reset manual flag
+                // connections[targetId].name = device.name; // REMOVED: Do not overwrite user-defined card title
 
                 // Emit status to Socket.IO for p5.js and other clients
                 socket.emit('connection-status', {
@@ -503,6 +560,11 @@
                     status: 'connected',
                     port: device.name
                 });
+
+                // Trigger Notch Notification
+                // Use the card name (e.g. "Serial Device 1") for consistency
+                const cardName = connections[targetId].name || device.name;
+                triggerNotch('success', cardName + ' Connected', 'bluetooth');
 
                 // Update the existing card UI
                 updateBLEUIStatus(targetId, 'connected');
@@ -762,6 +824,11 @@
     window.disconnectBLE = function (id) {
         const conn = connections[id];
 
+        // Set manual flag so handleDisconnect knows not to reconnect
+        if (conn) {
+            conn.manualDisconnect = true;
+        }
+
         // Clear Keep-Alive Interval if exists
         if (conn && conn.keepAliveInterval) {
             console.log('Clearing Keep-Alive interval for', id);
@@ -788,9 +855,23 @@
         if (statusEl) {
             if (status === 'connected') {
                 statusEl.className = 'status-badge status-connected';
+                // Reset inline styles from reconnecting state
+                statusEl.style.backgroundColor = '';
+                statusEl.style.color = '';
+                statusEl.style.border = '';
                 statusEl.innerHTML = '<div class="status-dot"></div>Connected';
+            } else if (status === 'reconnecting') {
+                statusEl.className = 'status-badge';
+                statusEl.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
+                statusEl.style.color = '#ffc107';
+                statusEl.style.border = '1px solid rgba(255, 193, 7, 0.3)';
+                statusEl.innerHTML = '<div class="status-dot" style="background:#ffc107; box-shadow: 0 0 10px #ffc107;"></div>Reconnecting...';
             } else {
                 statusEl.className = 'status-badge status-disconnected';
+                // Reset inline styles
+                statusEl.style.backgroundColor = '';
+                statusEl.style.color = '';
+                statusEl.style.border = '';
                 statusEl.innerHTML = '<div class="status-dot"></div>Disconnected';
             }
         }
@@ -801,6 +882,11 @@
                 // Use setAttribute to be consistent with updateConnectionId and ensure DOM reflects state
                 btn.setAttribute('onclick', `window.disconnectBLE('${id}')`);
                 btn.className = 'btn btn-danger';
+                btn.disabled = false;
+            } else if (status === 'reconnecting') {
+                btn.textContent = 'Cancel';
+                btn.setAttribute('onclick', `window.disconnectBLE('${id}')`);
+                btn.className = 'btn btn-warning';
                 btn.disabled = false;
             } else {
                 btn.textContent = 'Reconnect';
@@ -923,7 +1009,7 @@
         // If this card was scanning, cancel the scan
         if (scanningConnectionId === id) {
             console.log('Cancelling active scan for', id);
-            if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
+            if (window.electron && window.electron.ipcRenderer) window.electron.ipcRenderer.send('bluetooth-device-cancelled');
             scanningConnectionId = null;
         }
 
@@ -971,7 +1057,28 @@
 
     socket.on('connection-status', function (data) {
         console.log('Connection status update:', data);
+
+        // State Restoration: If this ID doesn't exist locally, create it.
+        // This happens when the window is recreated but the server has active connections.
+        if (!connections[data.id]) {
+            console.log('Restoring connection from server state:', data.id);
+            // Create the card structure
+            addConnection(data.id);
+            // Note: addConnection generates a default name. 
+            // Ideally, the server should send the name too, but for now this restores functionality.
+        }
+
         updateConnectionStatus(data.id, data.status, data.port);
+    });
+
+    socket.on('connect-error', function (data) {
+        console.error('Connection error received:', data);
+        if (connections[data.id]) {
+            updateConnectionStatus(data.id, 'disconnected');
+            // Trigger Notch (Error)
+            const deviceName = connections[data.id].name || 'Serial Device';
+            triggerNotch('error', 'Connection Failed: ' + data.error);
+        }
     });
 
     socket.on('serial-data', function (data) {
@@ -1207,10 +1314,10 @@
      * This is called when the user clicks "+ New Connection"
      * By default, creates a USB Serial connection
      */
-    window.addConnection = function () {
+    window.addConnection = function (restoredId = null) {
         console.log('Adding new connection...');
 
-        const id = getNextAvailableId();
+        const id = restoredId || getNextAvailableId();
         const displayNum = getDisplayNumber(id);
         // Default to serial, with a default name
         connections[id] = {
@@ -1635,6 +1742,16 @@
                 // The socket event will also update it, but this ensures immediate feedback
                 updateConnectionStatus(id, 'connected', selectedPort);
 
+                // We don't trigger notch here for Serial because the socket event will handle it
+                // and we want to avoid double notifications.
+                // Actually, let's do it here because we have the context of the user action.
+                // But wait, if we do it here, we need to make sure the socket event doesn't trigger it again.
+                // Let's rely on the socket event for consistency across all clients?
+                // No, the notch is local to this Electron window.
+
+                const deviceName = connections[id].name || 'Serial Device';
+                triggerNotch('success', deviceName + ' Connected', 'serial');
+
             } catch (error) {
                 console.error('Connection failed:', error);
                 connectBtn.textContent = 'Connect';
@@ -1703,17 +1820,72 @@
     };
 
     // Close modal when clicking outside
+    // Close modal when clicking outside
     window.onclick = function (event) {
         const errorModal = document.getElementById('error-modal');
         const usageModal = document.getElementById('usage-modal');
+        const settingsModal = document.getElementById('settings-modal');
 
-        if (event.target === errorModal) {
+        if (event.target == errorModal) {
             window.closeErrorModal();
         }
-        if (event.target === usageModal) {
+        if (event.target == usageModal) {
             window.closeUsageModal();
         }
+        if (event.target == settingsModal) {
+            window.closeSettingsModal();
+        }
     };
+
+    // Settings Modal Logic
+    window.openSettingsModal = async function () {
+        const modal = document.getElementById('settings-modal');
+        if (modal) {
+            modal.classList.add('active');
+
+            // Load current settings
+            if (ipcRenderer) {
+                try {
+                    // Check hardware compatibility first
+                    const hasNotch = await ipcRenderer.invoke('has-notch');
+                    const notchGroup = document.getElementById('notch-settings-group');
+
+                    if (notchGroup) {
+                        if (hasNotch) {
+                            notchGroup.style.display = 'flex';
+                            const settings = await ipcRenderer.invoke('get-settings');
+                            const toggle = document.getElementById('notch-toggle');
+                            if (toggle) {
+                                toggle.checked = settings.notchEnabled;
+                            }
+                        } else {
+                            notchGroup.style.display = 'none';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load settings:', e);
+                }
+            }
+        }
+    };
+
+    window.closeSettingsModal = function () {
+        const modal = document.getElementById('settings-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    };
+
+    window.toggleNotchSetting = function (checkbox) {
+        if (ipcRenderer) {
+            ipcRenderer.send('update-setting', {
+                key: 'notchEnabled',
+                value: checkbox.checked
+            });
+        }
+    };
+
+
 
     function updateConnectionStatus(id, status, port) {
         console.log('Updating status for', id, 'to', status);
@@ -1727,6 +1899,7 @@
         const statusEl = document.getElementById('status_' + id);
         const connectBtn = document.getElementById('connect_' + id);
         const dataPreview = document.getElementById('data_' + id);
+        const portSelect = document.getElementById('port_' + id); // Added for disabling
 
         if (!statusEl || !connectBtn || !dataPreview) {
             console.error('UI elements not found for:', id);
@@ -1742,6 +1915,18 @@
                 connectBtn.disabled = false;
                 connectBtn.className = 'btn btn-danger';
                 dataPreview.classList.add('active');
+
+                // Trigger Notch (Success)
+                // We check if this is a Serial connection (BLE handles its own triggers usually, but this function is shared)
+                // Actually, updateConnectionStatus is primarily for Serial via Socket.IO.
+                // BLE uses updateBLEUIStatus.
+                if (connections[id] && connections[id].type !== 'ble') {
+                    const deviceName = connections[id].name || 'Serial Device';
+                    triggerNotch('success', deviceName + ' Connected', 'serial');
+                }
+
+                // Disable port selection
+                if (portSelect) portSelect.disabled = true;
                 break;
             case 'connecting':
                 statusEl.innerHTML = '<div class="status-dot"></div>Connecting';
@@ -1754,6 +1939,15 @@
                 connectBtn.disabled = false;
                 connectBtn.className = 'btn btn-primary';
                 dataPreview.classList.remove('active');
+
+                // Trigger Notch (Disconnect)
+                if (connections[id] && connections[id].type !== 'ble') {
+                    const deviceName = connections[id].name || 'Serial Device';
+                    triggerNotch('disconnect', deviceName + ' Disconnected', 'serial');
+                }
+
+                // Enable port selection
+                if (portSelect) portSelect.disabled = false;
                 break;
         }
     }

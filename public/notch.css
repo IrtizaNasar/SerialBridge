@@ -1,0 +1,151 @@
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent !important;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.notch {
+    background-color: #000000;
+    /* Fallback */
+    /* Smooth squircle-like rounding */
+    /* Apple "Spring" Easing for that fluid, organic feel */
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    /* Pure Hardware Black */
+    background-color: #000000;
+
+    /* Remove the flat border */
+    border: none;
+    outline: none;
+
+    /* Optimize rendering */
+    will-change: transform, opacity, width, height;
+}
+
+/* Collapsed State (Hidden/Tiny) */
+.notch.collapsed {
+    /* Match physical notch approx width */
+    width: 160px;
+    height: 32px;
+    opacity: 0;
+    /* Start flush with top, hidden */
+    transform: translateY(-10px) scale(0.9);
+    /* Bottom corners rounded only */
+    border-radius: 0 0 16px 16px;
+    /* No shadow in collapsed state to prevent artifacts */
+    box-shadow: none;
+}
+
+/* Expanded State (Notification) */
+.notch.expanded {
+    width: auto;
+    min-width: 280px;
+    max-width: 420px;
+    height: 44px;
+    /* Slightly taller for attached look */
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    /* Bottom corners rounded only */
+    border-radius: 0 0 20px 20px;
+    margin-top: 0;
+    /* Flush with bezel */
+    padding: 0 12px;
+    filter: blur(0px);
+
+    /* The "Notchnook" / Apple Glass Effect - Only show when expanded */
+    box-shadow:
+        0 20px 40px -10px rgba(0, 0, 0, 0.6),
+        0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.notch-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 12px;
+    width: 100%;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: 0.1s;
+}
+
+.notch.expanded .notch-content {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.5px;
+}
+
+.message {
+    color: rgba(255, 255, 255, 0.98);
+    font-size: 13.5px;
+    /* Precise native size */
+    font-weight: 500;
+    white-space: nowrap;
+    letter-spacing: -0.015em;
+    /* Tighter Apple-style tracking */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    /* Subtle text shadow for legibility */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Native Colors - Colored Icon on Black Surface */
+.success {
+    color: #4CD964;
+    /* Apple Green */
+    /* No background override - keeps the black notch */
+}
+
+.success .icon {
+    filter: drop-shadow(0 0 8px rgba(76, 217, 100, 0.6));
+    /* Glow only the icon */
+}
+
+.disconnect,
+.error {
+    color: #FF3B30;
+    /* Apple Red */
+}
+
+.disconnect .icon,
+.error .icon {
+    filter: drop-shadow(0 0 8px rgba(255, 59, 48, 0.6));
+}
+
+.info {
+    color: #0A84FF;
+    /* Apple Blue */
+}
+
+.info .icon {
+    filter: drop-shadow(0 0 8px rgba(10, 132, 255, 0.6));
+}

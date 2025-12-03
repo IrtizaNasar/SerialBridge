@@ -32,6 +32,7 @@ let connections = new Map(); // Stores active serial port connections (id -> {po
 let serverPort = 3000;       // Default server port (will auto-increment if busy)
 let bluetoothCallback = null; // Callback for Bluetooth device selection
 
+
 /**
  * Creates and configures the Express server and Socket.IO
  * This server provides:
@@ -366,48 +367,105 @@ function createWindow() {
         mainWindow.webContents.send('bluetooth-device-list', deviceList);
     });
 
-    // Handle device selection from renderer
-    // This event is triggered when the user clicks "Connect" in the UI
-    // It resolves the promise returned by navigator.bluetooth.requestDevice() in the renderer
-    ipcMain.on('bluetooth-device-selected', (event, deviceId) => {
-        console.log('Main: Device selected:', deviceId);
-        if (bluetoothCallback) {
-            bluetoothCallback(deviceId);
-            bluetoothCallback = null;
-        }
-    });
-
-    // Handle cancellation from renderer
-    ipcMain.on('bluetooth-device-cancelled', () => {
-        console.log('Main: Device selection cancelled');
-        if (bluetoothCallback) {
-            bluetoothCallback(''); // Empty string cancels the selection
-            bluetoothCallback = null;
-        }
-    });
-
-    // Handle bluetooth pairing request (for Device Profiles)
-    ipcMain.handle('bluetooth-pairing-request', async (event, serviceUuid) => {
-        console.log('Main: Bluetooth pairing request for service:', serviceUuid);
-
-        try {
-            // Trigger the Bluetooth device picker
-            // The mainWindow.webContents.on('select-bluetooth-device') handler will be called
-            // We don't need to do anything here except acknowledge the request
-            return { success: true };
-        } catch (error) {
-            console.error('Main: Error in bluetooth-pairing-request:', error);
-            throw error;
-        }
-    });
-
     mainWindow.loadURL(`http://localhost:${serverPort}`);
     mainWindow.setMenuBarVisibility(false);
 }
 
+// Handle device selection from renderer
+ipcMain.on('bluetooth-device-selected', (event, deviceId) => {
+    console.log('Main: Device selected:', deviceId);
+    if (bluetoothCallback) {
+        bluetoothCallback(deviceId);
+        bluetoothCallback = null;
+    }
+});
+
+// Handle cancellation from renderer
+ipcMain.on('bluetooth-device-cancelled', () => {
+    console.log('Main: Device selection cancelled');
+    if (bluetoothCallback) {
+        bluetoothCallback(''); // Empty string cancels the selection
+        bluetoothCallback = null;
+    }
+});
+
+// Handle bluetooth pairing request (for Device Profiles)
+ipcMain.handle('bluetooth-pairing-request', async (event, serviceUuid) => {
+    console.log('Main: Bluetooth pairing request for service:', serviceUuid);
+
+    try {
+        // Trigger the Bluetooth device picker
+        // The mainWindow.webContents.on('select-bluetooth-device') handler will be called
+        // We don't need to do anything here except acknowledge the request
+        return { success: true };
+    } catch (error) {
+        console.error('Main: Error in bluetooth-pairing-request:', error);
+        throw error;
+    }
+});
+
+
+
+
+
+
+
 app.whenReady().then(() => {
+    console.log('[DEBUG] App Starting...');
+
+    // Log process crashes (GPU, Renderer, etc.)
+    app.on('child-process-gone', (event, details) => {
+        console.error('[DEBUG] Child Process Gone:', details.type, details.reason, details.exitCode);
+    });
+
     createServer();
-    setTimeout(createWindow, 1000);
+    setTimeout(() => {
+        createWindow();
+        if (mainWindow && mainWindow.webContents) {
+            mainWindow.webContents.on('render-process-gone', (event, details) => {
+                console.error('[DEBUG] Renderer Process Gone:', details.reason, details.exitCode);
+            });
+            mainWindow.webContents.on('crashed', (event) => {
+                console.error('[DEBUG] Renderer Crashed');
+            });
+        }
+    }, 1000);
+
+    // Initialize Settings
+    const { loadSettings, updateSetting } = require('./settings-manager');
+    const settings = loadSettings();
+
+    // Initialize Dynamic Notch (macOS Only)
+    const { initNotch, enableNotch, disableNotch } = require('./notch-manager');
+    initNotch(ipcMain, settings.notchEnabled);
+
+    // Settings IPC Handlers
+    ipcMain.handle('get-settings', () => {
+        return loadSettings();
+    });
+
+    ipcMain.handle('has-notch', () => {
+        const { hasNotch } = require('./notch-manager');
+        return hasNotch();
+    });
+
+    ipcMain.on('update-setting', (event, { key, value }) => {
+        const newSettings = updateSetting(key, value);
+
+        // Handle Notch Toggle Side Effects
+        if (key === 'notchEnabled') {
+            if (value) {
+                enableNotch();
+            } else {
+                disableNotch();
+            }
+        }
+
+        // Broadcast new settings to all windows (optional, but good practice)
+        if (mainWindow) {
+            mainWindow.webContents.send('settings-updated', newSettings);
+        }
+    });
 });
 
 app.on('window-all-closed', () => {
@@ -432,3 +490,20 @@ app.on('before-quit', () => {
         }
     });
 });
+
+app.on('activate', () => {
+    // On macOS it's common to re-create a window in the app when the
+    // dock icon is clicked and there are no other windows open.
+
+    // Check if the MAIN window is destroyed or missing.
+    // We explicitly check mainWindow instead of getAllWindows() to handle cases
+    // where auxiliary windows (like the notch or hidden panels) might still exist.
+
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        createWindow();
+    } else {
+        mainWindow.show();
+        mainWindow.focus();
+    }
+});
+
