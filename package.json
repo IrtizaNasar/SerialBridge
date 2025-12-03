@@ -64,7 +64,9 @@
       ],
       "extendInfo": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to Arduino and Muse devices."
-      }
+      },
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist"
     },
     "win": {
       "target": "nsis",
