@@ -149,3 +149,14 @@ body {
 .info .icon {
     filter: drop-shadow(0 0 8px rgba(10, 132, 255, 0.6));
 }
+
+.warning,
+.reconnecting {
+    color: #FFD60A;
+    /* Apple Yellow */
+}
+
+.warning .icon,
+.reconnecting .icon {
+    filter: drop-shadow(0 0 8px rgba(255, 214, 10, 0.6));
+}

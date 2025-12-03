@@ -404,7 +404,7 @@
 
                 // Trigger Notch Warning
                 const deviceName = connections[connectionId].name || 'Bluetooth Device';
-                triggerNotch('error', 'Reconnecting ' + deviceName + '...', 'bluetooth');
+                triggerNotch('reconnecting', 'Reconnecting ' + deviceName + '...', 'bluetooth');
 
                 // Attempt Reconnect
                 setTimeout(() => {
