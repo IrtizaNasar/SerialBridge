@@ -8,9 +8,7 @@
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws:;">
     <link rel="stylesheet" href="styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 
@@ -143,7 +141,7 @@
     <!-- Usage Guide Modal -->
     <div id="usage-modal" class="modal">
         <div class="modal-backdrop" onclick="window.closeUsageModal()"></div>
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header-bar">
                 <div class="modal-header-title">Usage Guide</div>
             </div>
@@ -161,32 +159,36 @@
             </div>
 
             <div class="modal-body-content">
-                <h3>Connect your sketch</h3>
-                <p>
-                    <strong>Serial Bridge</strong> automatically bridges your Arduino devices to the web.
-                    Include the socket.io client and our bridge script to start receiving data in your P5.js sketches.
-                </p>
+                <!-- Card 1: Setup -->
+                <div class="usage-card">
+                    <h3>Connect your sketch</h3>
+                    <p>
+                        Include the socket.io client and our bridge script to start receiving data.
+                    </p>
 
-                <div class="code-snippet-wrapper">
-                    <pre
-                        class="code-snippet-stripe"><code>&lt;script src="<span class="dynamic-server-url">http://localhost:3000</span>/socket.io/socket.io.js"&gt;&lt;/script&gt;
+                    <div class="code-snippet-wrapper">
+                        <pre
+                            class="code-snippet-stripe"><code>&lt;script src="<span class="dynamic-server-url">http://localhost:3000</span>/socket.io/socket.io.js"&gt;&lt;/script&gt;
 &lt;script src="<span class="dynamic-server-url">http://localhost:3000</span>/serial-bridge.js"&gt;&lt;/script&gt;</code></pre>
-                    <button class="copy-btn" onclick="window.copyCode(this)" title="Copy to clipboard">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                    </button>
+                        <button class="copy-btn" onclick="window.copyCode(this)" title="Copy to clipboard">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-                <h3>Use in P5.js</h3>
-                <p>
-                    Initialize the bridge and listen for data:
-                </p>
+                <!-- Card 2: Usage -->
+                <div class="usage-card">
+                    <h3>Use in P5.js</h3>
+                    <p>
+                        Initialize the bridge and listen for data:
+                    </p>
 
-                <div class="code-snippet-wrapper">
-                    <pre class="code-snippet-stripe"><code>let bridge;
+                    <div class="code-snippet-wrapper">
+                        <pre class="code-snippet-stripe"><code>let bridge;
 
 function setup() {
     createCanvas(400, 400);
@@ -197,19 +199,22 @@ function setup() {
         console.log('Received:', data);
     });
 }</code></pre>
-                    <button class="copy-btn" onclick="window.copyCode(this)" title="Copy to clipboard">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                    </button>
+                        <button class="copy-btn" onclick="window.copyCode(this)" title="Copy to clipboard">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="help-link">
+                        Need help? Check the <a href="https://github.com/IrtizaNasar/SerialBridge/tree/main/examples"
+                            target="_blank">examples folder</a>
+                    </div>
                 </div>
 
-                <div class="help-link">
-                    Need help? Check the <a href="https://github.com/IrtizaNasar/SerialBridge/tree/main/examples"
-                        target="_blank">examples folder</a>
-                </div>
+
             </div>
 
             <div class="modal-footer-action">
@@ -221,22 +226,39 @@ function setup() {
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal">
         <div class="modal-backdrop" onclick="window.closeSettingsModal()"></div>
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 520px;">
             <div class="modal-header-bar">
                 <div class="modal-header-title">Settings</div>
             </div>
 
             <div class="modal-body-content">
-                <div id="notch-settings-group" class="setting-item">
-                    <div>
-                        <h4>Dynamic Notch</h4>
-                        <p>Show connection notifications in the
-                            camera notch area (macOS only).</p>
+                <!-- Group Container (Hidden if no notch) -->
+                <div id="notch-settings-group" style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Item 1: Main Toggle -->
+                    <div class="setting-item">
+                        <div>
+                            <h4>Dynamic Notch</h4>
+                            <p>Show connection notifications in the
+                                camera notch area (macOS only).</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="notch-toggle" onchange="window.toggleNotchSetting(this)">
+                            <span class="slider round"></span>
+                        </label>
                     </div>
-                    <label class="switch">
-                        <input type="checkbox" id="notch-toggle" onchange="window.toggleNotchSetting(this)">
-                        <span class="slider round"></span>
-                    </label>
+
+                    <!-- Item 2: Sound Toggle -->
+                    <div class="setting-item">
+                        <div>
+                            <h4>Notch Sounds</h4>
+                            <p>Play sound effects for notch notifications.</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="notch-sound-toggle"
+                                onchange="window.toggleNotchSoundSetting(this)">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
                 </div>
 
                 <div id="analytics-settings-group" class="setting-item"

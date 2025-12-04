@@ -7,6 +7,7 @@ const settingsPath = path.join(userDataPath, 'settings.json');
 
 const defaultSettings = {
     notchEnabled: true,
+    notchSoundsEnabled: false,
     analyticsEnabled: true
 };
 

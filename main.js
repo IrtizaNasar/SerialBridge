@@ -10,8 +10,9 @@
  * - Handling Bluetooth device selection
  */
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, screen } = require('electron');
 const path = require('path');
+const os = require('os');
 
 // Enable Web Bluetooth on Linux if not already enabled
 if (process.platform === 'linux') {

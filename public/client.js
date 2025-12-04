@@ -430,7 +430,9 @@
                 });
 
                 const deviceName = connections[connectionId].name || 'Bluetooth Device';
-                triggerNotch('disconnect', deviceName + ' Disconnected', 'bluetooth');
+                const profile = connections[connectionId].profile;
+                const icon = getDeviceIcon('bluetooth', profile);
+                triggerNotch('disconnect', deviceName + ' Disconnected', icon);
             } else {
                 // Unintentional disconnect (e.g. display plug/unplug)
                 console.log('Unintentional disconnect detected! Attempting auto-reconnect in 2s...');
@@ -441,7 +443,9 @@
 
                 // Trigger Notch Warning
                 const deviceName = connections[connectionId].name || 'Bluetooth Device';
-                triggerNotch('reconnecting', 'Reconnecting ' + deviceName + '...', 'bluetooth');
+                const profile = connections[connectionId].profile;
+                const icon = getDeviceIcon('bluetooth', profile);
+                triggerNotch('reconnecting', 'Reconnecting ' + deviceName + '...', icon);
 
                 // Attempt Reconnect
                 setTimeout(() => {
@@ -451,7 +455,10 @@
                             // If it fails, finally set to disconnected
                             updateBLEUIStatus(connectionId, 'disconnected');
                             connections[connectionId].status = 'disconnected';
-                            triggerNotch('disconnect', deviceName + ' Disconnected', 'bluetooth');
+
+                            const profile = connections[connectionId].profile;
+                            const icon = getDeviceIcon('bluetooth', profile);
+                            triggerNotch('disconnect', deviceName + ' Disconnected', icon);
                         });
                     }
                 }, 2000);
@@ -609,13 +616,22 @@
                 // Trigger Notch Notification
                 // Use the card name (e.g. "Serial Device 1") for consistency
                 const cardName = connections[targetId].name || device.name;
-                triggerNotch('success', cardName + ' Connected', 'bluetooth');
+                const icon = getDeviceIcon('bluetooth', profileKey);
+                triggerNotch('bluetooth-success', cardName + ' Connected', icon);
 
                 // Track Analytics
                 if (window.electron && window.electron.ipcRenderer) {
-                    window.electron.ipcRenderer.invoke('track-event', 'bluetooth_connected', {
-                        device_name: device.name || 'Unknown'
+                    console.log('[Analytics] Sending bluetooth_connected:', {
+                        device_name: device.name || 'Unknown',
+                        profile: profileKey
                     });
+                    window.electron.ipcRenderer.invoke('track-event', 'bluetooth_connected', {
+                        device_name: device.name || 'Unknown',
+                        profile: profileKey
+                    });
+
+                    // Track specific profile as its own event for easier plotting in Aptabase
+                    window.electron.ipcRenderer.invoke('track-event', `profile_connected_${profileKey}`);
                 }
 
                 // Update the existing card UI
@@ -837,6 +853,23 @@
     // UI HELPER FUNCTIONS
     // ========================================
 
+    // ===== ICONS =====
+    const USB_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
+    const BLUETOOTH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"></path></svg>`;
+
+    // Custom Icons (User Selected)
+    const BRAINWAVE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h3l2-9 4 18 4-18 3 9h4"></path></svg>`;
+    const HEART_PULSE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>`;
+
+    function getDeviceIcon(type, profileId) {
+        if (profileId === 'muse_2') return BRAINWAVE_ICON;
+        if (profileId === 'heart_rate') return HEART_PULSE_ICON;
+
+        // Default fallbacks
+        if (type === 'bluetooth') return BLUETOOTH_ICON;
+        return USB_ICON;
+    }
+
     // Add a new BLE connection card to the UI
     // This is called when the user clicks "New Connection" -> "Bluetooth"
     function addBLEToUI(id, name) {
@@ -846,15 +879,15 @@
             emptyState.style.display = 'none';
         }
 
-        const displayNum = getDisplayNumber(id);
-        const div = document.createElement('div');
-        div.className = 'connection-card';
-        div.id = 'card_' + id;
+        const card = document.createElement('div');
+        card.className = 'connection-card';
+        card.id = `card-${id}`;
 
-        div.innerHTML = `
+        const icon = getDeviceIcon(type, profileId);
+        card.innerHTML = `
         <div class="card-header">
             <div class="card-title">
-                <h3>Arduino ${displayNum} (BLE)</h3>
+                <h3>Arduino ${getDisplayNumber(id)} (BLE)</h3>
                 <div class="connection-id-group">
                     <label class="id-label">ID:</label>
                     <input type="text" class="connection-id-input" id="id_input_${id}" value="${id}" disabled>
@@ -1953,6 +1986,8 @@
 
                         // Sync Notch Toggle (only if visible)
                         if (hasNotch) {
+                            const notchSoundToggle = document.getElementById('notch-sound-toggle');
+                            if (notchSoundToggle) notchSoundToggle.checked = settings.notchSoundsEnabled === true;
                             const notchToggle = document.getElementById('notch-toggle');
                             if (notchToggle) {
                                 notchToggle.checked = settings.notchEnabled;
@@ -2550,6 +2585,20 @@
     };
 
     console.log('Serial Bridge JavaScript loaded successfully');
+
+    // Settings: Toggle Dynamic Notch
+    window.toggleNotchSetting = async function (el) {
+        if (!window.electron) return;
+        const enabled = el.checked;
+        await window.electron.ipcRenderer.invoke('update-setting', 'notchEnabled', enabled);
+    };
+
+    // Settings: Toggle Notch Sounds
+    window.toggleNotchSoundSetting = async function (el) {
+        if (!window.electron) return;
+        const enabled = el.checked;
+        await window.electron.ipcRenderer.invoke('update-setting', 'notchSoundsEnabled', enabled);
+    };
 
     window.toggleAnalyticsSetting = async function (checkbox) {
         console.log('Toggling Analytics:', checkbox.checked);

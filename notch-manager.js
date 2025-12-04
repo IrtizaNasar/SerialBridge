@@ -1,10 +1,14 @@
+
 const { BrowserWindow, screen, app } = require('electron');
 const path = require('path');
 const { execSync } = require('child_process');
 
+const { loadSettings } = require('./settings-manager');
 let notchWindow;
 let repositionNotch; // Define globally for enable/disable access
 let getInternalDisplay; // Define globally
+
+
 
 /**
  * Checks if the current Mac has a physical notch.
@@ -41,6 +45,8 @@ function showNotch(type, message, icon) {
     // Safety check: If notch is disabled or window destroyed, do nothing.
     if (!notchWindow || notchWindow.isDestroyed()) return;
 
+
+
     const targetDisplay = getInternalDisplay();
     if (!targetDisplay) {
         console.log('[Notch] No internal display found');
@@ -54,12 +60,22 @@ function showNotch(type, message, icon) {
         const expandedHeight = 200;
         const newX = x + Math.round((width - expandedWidth) / 2);
 
-        notchWindow.setBounds({
-            x: newX,
-            y: y + 30, // Position right below the notch
-            width: expandedWidth,
-            height: expandedHeight
-        });
+        // Check if we actually need to move/resize to avoid visual glitches
+        const currentBounds = notchWindow.getBounds();
+        const needsMove = !notchWindow.isVisible() ||
+            currentBounds.x !== newX ||
+            currentBounds.y !== y ||
+            currentBounds.width !== expandedWidth ||
+            currentBounds.height !== expandedHeight;
+
+        if (needsMove) {
+            notchWindow.setBounds({
+                x: newX,
+                y: y, // Position at top of screen (Attached Style)
+                width: expandedWidth,
+                height: expandedHeight
+            });
+        }
 
         // Force Dock to stay visible (Safety for Panel type)
         if (process.platform === 'darwin') app.dock.show();
@@ -68,6 +84,7 @@ function showNotch(type, message, icon) {
         notchWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
         notchWindow.setAlwaysOnTop(true, 'pop-up-menu'); // 'pop-up-menu' works best with skipTaskbar
 
+        // Always show inactive to ensure it's visible and on top
         notchWindow.showInactive();
 
         // CRITICAL: Must forward events to window below!
@@ -76,24 +93,34 @@ function showNotch(type, message, icon) {
         console.error('[Notch] Error resizing for show:', e);
     }
 
-    if (notchWindow && !notchWindow.isDestroyed()) {
-        notchWindow.webContents.send('trigger-notch', { type, message, icon });
-    }
+        if (notchWindow && !notchWindow.isDestroyed()) {
+            const settings = loadSettings();
+            console.log('[Notch] Triggering notch. Sound enabled:', settings.notchSoundsEnabled);
+            notchWindow.webContents.send('trigger-notch', { 
+                type, 
+                message, 
+                icon, 
+                soundEnabled: settings.notchSoundsEnabled 
+            });
+        }
 
     // 2. Schedule Hide (Off-Screen)
-    setTimeout(() => {
+    // Clear any existing timeout to prevent premature hiding
+    if (global.notchHideTimeout) clearTimeout(global.notchHideTimeout);
+
+    global.notchHideTimeout = setTimeout(() => {
         if (notchWindow && !notchWindow.isDestroyed()) {
             try {
-                // Move OFF-SCREEN and hide
+                // Move OFF-SCREEN (Don't hide, keep renderer hot)
                 const { x } = targetDisplay.bounds;
                 notchWindow.setPosition(x, -10000);
                 notchWindow.setSize(1, 1); // Minimize footprint
-                notchWindow.hide();
+                // notchWindow.hide(); // REMOVED: Causes lag on next show
             } catch (e) {
                 console.error('[Notch] Error hiding:', e);
             }
         }
-    }, 3500); // Slightly longer than the client-side 3000ms hide timeout
+    }, 5500); // Slightly longer than the client-side 5000ms hide timeout
 }
 
 /**
@@ -265,7 +292,9 @@ function createNotchWindow() {
         // Initial Position
         repositionNotch();
 
-        // Note: We do NOT show it here anymore. It stays hidden until triggered.
+        // CRITICAL: Show immediately but off-screen to keep renderer "hot"
+        // This prevents the "first connect lag" by ensuring the window is already painted.
+        notchWindow.showInactive();
     });
 }
 

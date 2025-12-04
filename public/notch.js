@@ -18,18 +18,76 @@ const icons = {
     bluetooth: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"></polyline></svg>`
 };
 
-ipcRenderer.on('trigger-notch', (event, { type, message, icon }) => {
+// Advanced Audio Engine (Web Audio API)
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const soundBuffers = {};
+
+// 1. Create Static Graph (Once) to prevent lag
+// Filter -> Gain -> Destination
+const lowPassFilter = audioCtx.createBiquadFilter();
+lowPassFilter.type = 'lowpass';
+lowPassFilter.frequency.value = 2000; // Soften harshness
+
+const masterGain = audioCtx.createGain();
+masterGain.gain.value = 0.15; // 15% Volume
+
+// Connect the permanent graph
+lowPassFilter.connect(masterGain);
+masterGain.connect(audioCtx.destination);
+
+async function loadSound(name, url) {
+    try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        soundBuffers[name] = audioBuffer;
+    } catch (e) {
+        console.error(`Failed to load sound ${name}:`, e);
+    }
+}
+
+// Preload Buffers
+loadSound('success', 'success.wav');
+loadSound('error', 'error.mp3');
+
+function playPolishedSound(bufferName) {
+    if (!soundBuffers[bufferName]) return;
+
+    // Resume context if suspended (Chrome/Electron policy)
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    // Create Source (Lightweight)
+    const source = audioCtx.createBufferSource();
+    source.buffer = soundBuffers[bufferName];
+
+    // Pitch Randomization
+    source.playbackRate.value = 0.98 + Math.random() * 0.04;
+
+    // Connect to existing graph
+    source.connect(lowPassFilter);
+
+    // Play
+    source.start(0);
+}
+
+ipcRenderer.on('trigger-notch', (event, { type, message, icon, soundEnabled }) => {
+    console.log('[Notch Renderer] Received trigger. Sound enabled:', soundEnabled);
     // Clear existing timeout
     if (hideTimeout) clearTimeout(hideTimeout);
 
-    const notch = document.getElementById('notch');
+    const container = document.getElementById('notch'); // Assuming 'notch' is the container
     const msgEl = document.getElementById('message');
     const iconContainer = document.getElementById('icon');
 
     // Select Icon based on Type/Icon param
     let iconSvg = icons.check; // Default
 
-    if (icon === 'bluetooth') {
+    if (icon && icon.startsWith('<svg')) {
+        // Custom SVG passed directly
+        iconSvg = icon;
+    } else if (icon === 'bluetooth') {
         iconSvg = icons.bluetooth;
     } else if (type === 'error') {
         iconSvg = icons.x;
@@ -40,12 +98,21 @@ ipcRenderer.on('trigger-notch', (event, { type, message, icon }) => {
     iconContainer.innerHTML = iconSvg;
 
     // Reset Classes
-    notch.className = 'notch expanded';
-    notch.classList.add(type); // success, disconnect, error
+    container.className = 'notch expanded';
+    container.classList.add(type); // success, disconnect, error
 
-    // Auto-hide after 3 seconds
+    // Auto-hide after 5 seconds (Native feel)
     hideTimeout = setTimeout(() => {
-        notch.classList.remove('expanded');
-        notch.classList.add('collapsed');
-    }, 3000);
+        container.classList.remove('expanded');
+        container.classList.add('collapsed');
+    }, 5000);
+
+    // Play Sound Effect (Polished)
+    if (soundEnabled !== false) {
+        if (type === 'success' || type === 'bluetooth-success') {
+            playPolishedSound('success');
+        } else if (type === 'disconnect' || type === 'error') {
+            playPolishedSound('error');
+        }
+    }
 });

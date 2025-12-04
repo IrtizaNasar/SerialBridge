@@ -13,6 +13,39 @@ textarea {
     -webkit-app-region: no-drag;
 }
 
+/* Local Inter Font */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/Inter-Regular.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('fonts/Inter-Medium.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('fonts/Inter-SemiBold.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/Inter-Bold.ttf') format('truetype');
+}
+
 :root {
     --bg-primary: #000000;
     --bg-secondary: #020202;
@@ -1060,8 +1093,10 @@ body {
 
 .modal-visual {
     background: #1A1A1A;
-    margin: 0 24px;
+    margin: 24px 24px 0;
+    /* 24px top, 0 bottom (body padding handles it) */
     height: 160px;
+    /* Restored height */
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -1139,9 +1174,11 @@ body {
 }
 
 .help-link {
-    font-size: 14px;
+    font-size: 13px;
+    /* Slightly smaller */
     color: rgba(255, 255, 255, 0.6);
-    margin-top: 16px;
+    margin-top: 12px;
+    /* Reduced margin */
 }
 
 .help-link a {
@@ -1670,13 +1707,15 @@ input:checked+.slider:before {
     overflow: hidden;
 }
 
-#settings-modal .modal-header-bar {
+#settings-modal .modal-header-bar,
+#usage-modal .modal-header-bar {
     padding: 20px 24px;
     border-bottom: 1px solid var(--border-primary);
     background: rgba(255, 255, 255, 0.02);
 }
 
-#settings-modal .modal-header-title {
+#settings-modal .modal-header-title,
+#usage-modal .modal-header-title {
     font-size: 18px;
     font-weight: 600;
     color: var(--text-primary);
@@ -1700,6 +1739,49 @@ input:checked+.slider:before {
     gap: 20px;
 }
 
+/* Usage Modal Polish */
+#usage-modal .modal-content {
+    background: var(--bg-card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border-primary);
+    /* Restored subtle border */
+    box-shadow: var(--shadow-xl);
+    /* Match Settings shadow */
+    border-radius: 20px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.usage-card {
+    background: var(--bg-glass-active);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    /* Consistent 24px spacing */
+}
+
+.usage-card:last-child {
+    margin-bottom: 0;
+}
+
+.usage-card h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.usage-card p {
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.usage-card .code-snippet-wrapper {
+    margin-top: 0;
+    /* Remove default margin since it's inside card */
+}
+
 .setting-item h4 {
     margin: 0;
     font-size: 15px;
@@ -1715,7 +1797,8 @@ input:checked+.slider:before {
     line-height: 1.4;
 }
 
-#settings-modal .modal-footer-action {
+#settings-modal .modal-footer-action,
+#usage-modal .modal-footer-action {
     padding: 20px 24px;
     border-top: 1px solid var(--border-primary);
     background: rgba(255, 255, 255, 0.02);
@@ -1746,4 +1829,26 @@ input:checked+.slider:before {
     padding: 24px;
     border-top: 1px solid var(--border-primary);
     background: transparent;
+}
+
+/* Override Code Snippet Background for Usage Modal */
+.code-snippet-wrapper {
+    background: rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.code-snippet-stripe {
+    background: transparent !important;
+}
+
+/* Ensure text is readable */
+.code-snippet-stripe code {
+    color: var(--text-secondary);
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 12px;
+}
+
+.dynamic-server-url {
+    color: var(--accent-success);
 }

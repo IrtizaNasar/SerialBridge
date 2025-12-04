@@ -18,8 +18,15 @@ body {
     background-color: #000000;
     /* Fallback */
     /* Smooth squircle-like rounding */
-    /* Apple "Spring" Easing for that fluid, organic feel */
-    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+    /* "Dynamic Island" Physics - Fluid & Heavy */
+    /* "Dynamic Island" Physics - Fluid & Heavy */
+    /* Only animate physical properties, NOT color */
+    transition:
+        transform 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+        width 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+        height 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+        border-radius 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+        opacity 0.7s cubic-bezier(0.19, 1, 0.22, 1);
 
     display: flex;
     align-items: center;
@@ -34,43 +41,81 @@ body {
     outline: none;
 
     /* Optimize rendering */
-    will-change: transform, opacity, width, height;
+    will-change: transform, opacity, width, height, border-radius;
 }
 
 /* Collapsed State (Hidden/Tiny) */
 .notch.collapsed {
-    /* Match physical notch approx width */
-    width: 160px;
-    height: 32px;
-    opacity: 0;
-    /* Start flush with top, hidden */
-    transform: translateY(-10px) scale(0.9);
-    /* Bottom corners rounded only */
-    border-radius: 0 0 16px 16px;
-    /* No shadow in collapsed state to prevent artifacts */
+    /* Slightly smaller than physical notch to hide inside it */
+    width: 140px;
+    height: 30px;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+
+    /* Tighter curve to match actual hardware corners */
+    border-radius: 0 0 12px 12px;
+
     box-shadow: none;
 }
 
 /* Expanded State (Notification) */
 .notch.expanded {
     width: auto;
-    min-width: 280px;
+    min-width: 300px;
     max-width: 420px;
-    height: 44px;
-    /* Slightly taller for attached look */
+    height: 70px;
     opacity: 1;
     transform: translateY(0) scale(1);
-    /* Bottom corners rounded only */
-    border-radius: 0 0 20px 20px;
+
+    /* Balanced curvature for expanded state */
+    border-radius: 0 0 18px 18px;
+
     margin-top: 0;
-    /* Flush with bezel */
-    padding: 0 12px;
+
+    /* Push content to the bottom to clear the hardware notch */
+    align-items: flex-end;
+    padding-bottom: 12px;
+
     filter: blur(0px);
 
-    /* The "Notchnook" / Apple Glass Effect - Only show when expanded */
+    /* Deep, integrated shadow */
     box-shadow:
-        0 20px 40px -10px rgba(0, 0, 0, 0.6),
-        0 2px 4px rgba(0, 0, 0, 0.4);
+        0 15px 40px -10px rgba(0, 0, 0, 0.7),
+        0 5px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* The "Melted" Connection (Inverted Border Radius) */
+.notch.expanded::before,
+.notch.expanded::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    z-index: -1;
+    /* Smooth transition for the melt effect */
+    transition: opacity 0.3s ease;
+    opacity: 1;
+}
+
+/* Left Melt */
+.notch.expanded::before {
+    left: -20px;
+    /* Radial gradient to create the concave curve */
+    background: radial-gradient(circle at 0 100%, transparent 20px, #000000 21px);
+}
+
+/* Right Melt */
+.notch.expanded::after {
+    right: -20px;
+    background: radial-gradient(circle at 100% 100%, transparent 20px, #000000 21px);
+}
+
+/* Hide melts when collapsed */
+.notch.collapsed::before,
+.notch.collapsed::after {
+    opacity: 0;
 }
 
 .notch-content {
@@ -102,8 +147,8 @@ body {
 }
 
 .icon svg {
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
     stroke-width: 2.5px;
 }
 
@@ -121,27 +166,36 @@ body {
 }
 
 /* Native Colors - Colored Icon on Black Surface */
-.success {
+.success,
+.bluetooth-success {
     color: #4CD964;
     /* Apple Green */
     /* No background override - keeps the black notch */
 }
 
-.success .icon {
+.success .icon,
+.bluetooth-success .icon {
     filter: drop-shadow(0 0 8px rgba(76, 217, 100, 0.6));
     /* Glow only the icon */
 }
 
-.disconnect,
-.error {
+.disconnect {
     color: #FF3B30;
     /* Apple Red */
 }
 
-.disconnect .icon,
-.error .icon {
+.disconnect .icon {
     filter: drop-shadow(0 0 8px rgba(255, 59, 48, 0.6));
 }
+
+.error {
+    color: #FF3B30;
+}
+
+.error .icon {
+    filter: drop_shadow(0 0 8px rgba(255, 59, 48, 0.6));
+}
+
 
 .info {
     color: #0A84FF;
@@ -162,3 +216,93 @@ body {
 .reconnecting .icon {
     filter: drop-shadow(0 0 8px rgba(255, 214, 10, 0.6));
 }
+
+/* --- Icon Animations --- */
+
+/* 1. Pop In (Success/Connect) - Punchy & Fluid */
+@keyframes icon-pop {
+    0% {
+        transform: scale(0.4) rotate(-15deg);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.25) rotate(5deg);
+        opacity: 1;
+    }
+
+    /* Overshoot */
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+/* 2. Shake (Error/Disconnect) - Noticeable but Smooth */
+@keyframes icon-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-4px);
+    }
+
+    40% {
+        transform: translateX(4px);
+    }
+
+    60% {
+        transform: translateX(-2px);
+    }
+
+    80% {
+        transform: translateX(2px);
+    }
+}
+
+/* 3. Bluetooth Pulse (Breathing) */
+@keyframes bt-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.15);
+        opacity: 0.9;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Apply Animations when Expanded */
+.notch.expanded .icon svg {
+    /* Punchy spring entry */
+    animation: icon-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both;
+}
+
+/* Bluetooth Specific: Pop THEN Pulse */
+.notch.expanded.bluetooth-success .icon svg {
+    animation:
+        icon-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both,
+        bt-pulse 2s ease-in-out 0.7s infinite;
+    /* Start pulse after pop finishes */
+}
+
+/* Specific Overrides */
+.notch.expanded.disconnect .icon svg,
+.notch.expanded.error .icon svg {
+    /* Clear warning shake */
+    animation: icon-shake 0.5s ease-in-out 0.1s both;
+}
+
+/* Bluetooth specific: Pop in, then pulse? 
+   For now, let's just make the Bluetooth icon pop in nicely. 
+   If we want a continuous pulse, we'd need a separate class or nested element.
+*/
