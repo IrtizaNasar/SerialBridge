@@ -512,18 +512,10 @@ app.whenReady().then(() => {
     });
 
     // Handle Analytics Events from Renderer
-    ipcMain.handle('track-event', async (event, eventName, props) => {
-        console.log(`[ANALYTICS] Received event from renderer: ${eventName}`, props);
+    ipcMain.handle('track-event', (event, eventName, props) => {
         const settings = loadSettings();
-        console.log(`[ANALYTICS] Enabled: ${settings.analyticsEnabled}`);
-
         if (settings.analyticsEnabled) {
-            try {
-                await trackEvent(eventName, props);
-                console.log(`[ANALYTICS] Sent ${eventName} to Aptabase`);
-            } catch (err) {
-                console.error(`[ANALYTICS] Failed to send ${eventName}:`, err);
-            }
+            trackEvent(eventName, props);
         }
     });
 
