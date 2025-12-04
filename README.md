@@ -337,6 +337,46 @@ bridge.onData("device_1", (data) => {
 });
 ```
 
+### Heart Rate Monitor Support
+
+Serial Bridge supports any device that uses the standard **Bluetooth Heart Rate Profile (BLE)**. This includes most modern fitness trackers and chest straps.
+
+#### Verified Compatible Devices
+- **Whoop:** 4.0 (Must enable "Broadcast Heart Rate" in Whoop app)
+- **Polar:** H10, H9, OH1, Verity Sense
+- **Garmin:** HRM-Pro, HRM-Dual, and most watches (in Broadcast mode)
+- **Wahoo:** TICKR, TICKR X
+- **Generic:** Most standard BLE heart rate straps
+
+#### Accessing Data
+
+When using the **"Heart Rate Monitor"** profile, data is streamed as JSON objects.
+
+**Data Structure:**
+- **`type`**: Always `'heart_rate'`.
+- **`bpm`**: Heart Rate in Beats Per Minute (Integer).
+- **`rr_intervals`** *(Optional)*: An array of integers representing the time between beats (in 1/1024s).
+    - **Note:** This field is **only present if your device supports RR-Interval broadcasting** (e.g., Whoop, Polar H10). Cheaper sensors or some watches may not send this data.
+
+```javascript
+// Listen for data from your heart rate monitor
+bridge.onData("device_1", (data) => {
+    // Parse if string, otherwise use directly
+    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+    if (parsed.type === 'heart_rate') {
+        // 1. Heart Rate (Always available)
+        console.log("Heart Rate:", parsed.bpm);
+
+        // 2. RR-Intervals (Only if supported by device)
+        if (parsed.rr_intervals) {
+            console.log("RR Intervals:", parsed.rr_intervals);
+            // Use this for HRV calculations
+        }
+    }
+});
+```
+
 
 
 
