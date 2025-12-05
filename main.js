@@ -312,7 +312,7 @@ function createWindow() {
         backgroundColor: '#050505',
         minWidth: 800,
         minHeight: 600,
-        icon: path.join(__dirname, 'public/logo.png')
+        icon: path.join(__dirname, 'public/assets/images/logo.png')
     });
 
     // Add basic context menu (Copy/Paste/Inspect)

@@ -52,7 +52,7 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "public/logo.png",
+      "icon": "public/assets/images/logo.png",
       "target": [
         {
           "target": "default",
@@ -70,7 +70,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "public/logo.png"
+      "icon": "public/assets/images/logo.png"
     },
     "npmRebuild": true,
     "linux": {
