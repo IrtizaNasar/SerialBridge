@@ -4,7 +4,7 @@
 
 <h1 align="center">Serial Bridge</h1>
 
-<p align="center"> A desktop application that bridges <b>USB and Bluetooth</b> devices (Arduino, Muse 2, microcontrollers) to web-based creative coding environments like P5.js. Connect multiple devices simultaneously and access their data through a simple JavaScript API.</p>
+<p align="center"> A desktop application that bridges <b>USB and Bluetooth</b> devices (Arduino, ESP32, Muse 2, Whoop, etc.) to web-based creative coding environments like P5.js. Connect multiple devices simultaneously and access their data through a simple JavaScript API.</p>
 
 
 
@@ -23,12 +23,12 @@
 ## What's New in V2.0
 
 - **Bluetooth Low Energy (BLE) Support**: Native support for Arduino Uno R4 WiFi, Nano 33 BLE, and ESP32.
-- **Device Profiles**: Built-in support for complex devices like the **Muse 2** EEG headband.
+- **Device Profiles**: Built-in support for complex devices like the **Muse 2** EEG headband and **Bluetooth Heart Rate Monitors** (with more profiles in development).
 - **Session Management**: Save and load your entire workspace configuration.
 - **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
 - **Smart Error Handling**: Intelligent detection of "Port Busy" states (USB) with actionable troubleshooting steps.
-- **Dynamic Notch Notifications (macOS Only)**: Native-style notifications that integrate with your MacBook's notch for connection status updates.
+- **Dynamic Notch Notifications (macOS Only)**: Native-style notifications with **sound effects** that integrate with your MacBook's notch for connection status updates.
 
 ## Table of Contents
 
@@ -39,22 +39,23 @@
   - [Windows](#windows-setup)
   - [Linux](#linux-setup)
 - [Quick Start](#quick-start)
+- [Bluetooth Setup](#bluetooth-setup)
 - [Device Profiles](#device-profiles)
   - [Muse 2 Support](#muse-2-support)
+  - [Heart Rate Monitor Support](#heart-rate-monitor-support)
 - [API Reference](#api-reference)
+- [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
 - [Session Management](#session-management)
 - [Dynamic Notch Notifications (macOS Only)](#dynamic-notch-notifications-macos-only)
 - [Examples](#examples)
-  - [Bluetooth Setup](#bluetooth-setup)
-- [Project Structure](#project-structure)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
-- [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
+- [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [Privacy & Analytics](#privacy--analytics)
 - [License](#license)
 - [Contributors](#contributors)
-- [Credits](#credits)
+- [Built With](#built-with)
 - [Support](#support)
 
 ## Features
@@ -285,6 +286,28 @@ function draw() {
 
 ![Screen Recording 2025-11-20 at 00 35 31](https://github.com/user-attachments/assets/963fad9d-8d0d-466d-8596-6bce072cb072)
 
+## Bluetooth Setup
+
+There are two ways to use Bluetooth with Serial Bridge, depending on your hardware:
+
+**1. Classic Bluetooth (HC-05, HC-06, ESP32 Classic)**
+*   **Hardware:** Arduino Uno/Mega with HC-05 module, or ESP32 in Classic mode.
+*   **How it works:** The operating system creates a virtual Serial Port (COM port) for the device.
+*   **In Serial Bridge:** Treat this exactly like a USB connection.
+    1.  Pair the device in your computer's Bluetooth settings.
+    2.  In Serial Bridge, click **"+ New Connection"**.
+    3.  Select **Type: USB / Serial** (NOT Bluetooth).
+    4.  Select the device's port from the list.
+
+**2. Bluetooth Low Energy (BLE) - Arduino Uno R4 WiFi / Nano 33 BLE**
+*   **Hardware:** Newer boards with built-in BLE.
+*   **How it works:** Direct communication without a COM port.
+*   **In Serial Bridge:** Use the dedicated Bluetooth mode.
+    1.  Upload a BLE example sketch (e.g., `ble-uno-r4.ino`).
+    2.  In Serial Bridge, click **"+ New Connection"**.
+    3.  Select **Type: Bluetooth**.
+    4.  Click **"Scan"**, select your device, and click **"Connect"**.
+
 ## Device Profiles
 
 Serial Bridge includes built-in profiles for specific hardware devices. These profiles automatically handle connection protocols, data parsing, and formatting, making it effortless to work with complex sensors.
@@ -403,9 +426,9 @@ const bridge = new SerialBridge("http://localhost:3001");
 
 - `serverUrl` (string, optional): Bridge server URL. Auto-detects if not provided.
 
-#### `onData(arduinoId, callback)`
+#### `onData(id, callback)`
 
-Receive data from an Arduino connected via the desktop app.
+Receive data from any connected device (Arduino, ESP32, Muse 2, etc.) via the desktop app.
 
 ```javascript
 bridge.onData('device_1', (data) => {
@@ -415,11 +438,10 @@ bridge.onData('device_1', (data) => {
 ```
 
 **Parameters:**
-- `arduinoId` (string): The Arduino connection ID (e.g., 'device_1')
-
+- `id` (string): The device ID (e.g., 'device_1')
 - `callback` (function): Function called when data is received
 
-#### `onStatus(arduinoId, callback)`
+#### `onStatus(id, callback)`
 
 Monitor connection status changes.
 
@@ -432,12 +454,12 @@ bridge.onStatus('device_1', (status, port) => {
 
 **Parameters:**
 
-- `arduinoId` (string): The Arduino connection ID
+- `id` (string): The device connection ID
 - `callback` (function): Function called when status changes
 
-#### `send(arduinoId, data)`
+#### `send(id, data)`
 
-Send data from your P5.js sketch to a connected device (Arduino/microcontroller).
+Send data from your P5.js sketch to a connected serial device or microcontroller (e.g., Arduino, ESP32).
 
 ```javascript
 // Send a command
@@ -455,19 +477,19 @@ function mousePressed() {
 
 **Parameters:**
 
-- `arduinoId` (string): The Arduino connection ID
+- `id` (string): The device connection ID
 - `data` (string): Data to send
 
 **Returns:** Promise
 
 > [!IMPORTANT]
-> **Two-Way Communication**: Serial Bridge supports bidirectional communication. Your P5.js sketch can both **receive** sensor data (`onData()`) and **send** commands to Arduino (`send()`). This lets you control LEDs, motors, or adjust Arduino behavior from your web interface.
+> **Two-Way Communication**: Serial Bridge supports bidirectional communication. Your P5.js sketch can both **receive** sensor data (`onData()`) and **send** commands to the device (e.g., Arduino, ESP32) (`send()`). This lets you control LEDs, motors, or adjust microcontroller behavior (e.g., Arduino, ESP32) from your web interface.
 > 
 > See `examples/arduino-sketches/interactive-led.ino` for a complete example of receiving commands on Arduino.
 
 #### Wildcard Listeners
 
-Listen to all Arduino connections using `'*'`:
+Listen to all device connections using `'*'`:
 
 ```javascript
 bridge.onData("*", (data, id) => {
@@ -478,6 +500,12 @@ bridge.onStatus("*", (status, port, id) => {
   console.log(`${id} is ${status}`);
 });
 ```
+
+### Technical Note: Data Parsing
+The bridge uses a **Readline Parser** to process incoming data. This means it waits for a **newline character (`\n`)** before sending the data to your P5.js sketch.
+
+*   **Correct:** `Serial.println(value);` (Sends value + `\n`)
+*   **Incorrect:** `Serial.print(value);` (Data will be buffered forever and never received)
 
 ---
 
@@ -506,37 +534,119 @@ console.log(ports);
 
 **Returns:** Promise<object>
 
-#### `connectArduino(arduinoId, portPath, baudRate)`
+#### `connectSerial(id, portPath, baudRate)`
 
-Connect to an Arduino without using the desktop app UI.
-
+Connect to a specific serial device
 ```javascript
-await bridge.connectArduino('device_1', '/dev/cu.usbmodem14101', 9600);
-
+// Connect to a specific serial device
+await bridge.connectSerial('device_1', '/dev/ttyUSB0', 9600);
 ```
 
 **Parameters:**
 
-- `arduinoId` (string): The Arduino connection ID
+- `id` (string): The device connection ID
 - `portPath` (string): Serial port path
 - `baudRate` (number, optional): Baud rate. Default: 9600
 
 **Returns:** Promise
 
-#### `disconnectArduino(arduinoId)`
+#### `disconnectSerial(id)`
 
-Disconnect from an Arduino programmatically.
+Disconnect from a serial device programmatically.
 
 ```javascript
-await bridge.disconnectArduino('device_1');
+await bridge.disconnectSerial('device_1');
 
 ```
 
 **Parameters:**
 
-- `arduinoId` (string): The Arduino connection ID
+- `id` (string): The device connection ID
 
 **Returns:** Promise
+
+## Data Smoothing (For Beginners)
+
+Sensors are noisy. They jitter, spike, and glitch. The Serial Bridge Client Library includes built-in functions to fix this without complex math.
+
+### 1. `bridge.smooth(id, value, factor)`
+*   **Best for:** Potentiometers, Light Sensors, Joysticks.
+*   **Math:** Exponential Moving Average (EMA).
+*   **What it does:** Makes values feel "heavy" and fluid, like a volume knob with resistance.
+
+**Parameters:**
+*   `id`: A unique name (string) to remember this sensor's history (e.g., "pot1").
+*   `value`: The raw number coming from the sensor right now.
+*   `factor`: How much smoothing to apply (0.0 to 1.0).
+    *   `0.1`: Very snappy (little smoothing).
+    *   `0.9`: Very slow/smooth (heavy smoothing).
+
+```javascript
+let cleanVal = bridge.smooth("pot1", rawValue, 0.8);
+```
+
+### 2. `bridge.stable(id, value, frames)`
+*   **Best for:** Ultrasonic Sensors, IR Distance Sensors.
+*   **Math:** Median Filter.
+*   **What it does:** Ignores "glitches" and massive spikes by waiting to be sure the value is real.
+
+**Parameters:**
+*   `id`: A unique name (string) to remember this sensor's history.
+*   `value`: The raw number coming from the sensor right now.
+*   `frames`: How many recent values to look at (default: 5). Higher = more stable but slower.
+
+```javascript
+let dist = bridge.stable("ultra1", rawValue, 5);
+```
+
+### 3. `bridge.kalman(id, value, R, Q)`
+*   **Best for:** Tracking moving objects (Advanced).
+*   **Math:** 1D Kalman Filter.
+*   **What it does:** Predicts movement to reduce noise while keeping speed.
+
+**Parameters:**
+*   `id`: A unique name (string) to remember this sensor's history.
+*   `value`: The raw number coming from the sensor right now.
+*   `R`: Measurement Noise (default: 1). Higher = Trust the sensor less (smoother).
+*   `Q`: Process Noise (default: 0.1). Higher = Expect more movement (faster).
+
+```javascript
+let pos = bridge.kalman("hand", rawValue, 1, 0.1);
+```
+
+### Example: Single Sensor
+If you only have one sensor sending a number (e.g., `"1023"`):
+
+```javascript
+bridge.onData("device_1", (data) => {
+    // 1. Convert text to number
+    let rawVal = Number(data);
+    
+    // 2. Smooth it
+    let smoothVal = bridge.smooth("mySensor", rawVal, 0.8);
+    
+    // 3. Use it
+    circle(width/2, height/2, smoothVal);
+});
+```
+
+### Example: Handling Multiple Sensors
+If your Arduino sends multiple values (e.g., `"1023,512"`), you must use a **unique ID** for each one so the bridge doesn't mix them up.
+
+```javascript
+bridge.onData("device_1", (data) => {
+    // 1. Split the text into two numbers
+    let values = split(data, ","); 
+    
+    // 2. Smooth them SEPARATELY using unique IDs ("myPot", "myLight")
+    let smoothPot = bridge.smooth("myPot", rawPot, 0.9);
+    let smoothLight = bridge.smooth("myLight", rawLight, 0.9);
+
+    // 3. Use the clean values
+    circle(100, 100, smoothPot);
+    rect(200, 200, smoothLight, 50);
+});
+```
 
 ## Session Management
 
@@ -635,6 +745,7 @@ You can fully control this feature via the **Settings** menu:
 
 1.  Click the **Settings** gear icon at the bottom of the sidebar.
 2.  Toggle **"Dynamic Notch"** on or off.
+3.  Toggle **"Notch Sounds"** to enable subtle sound effects on connection events.
 
 **Performance Note:**
 While the feature is designed to be extremely lightweight, disabling it will completely destroy the background notification window. This frees up memory and CPU resources, which can be useful if you are running on older hardware or need maximum performance for complex P5.js sketches.
@@ -653,6 +764,7 @@ The `examples/` directory contains complete working examples for both P5.js and 
   - `store-multi-input-p5js`: Visualization of an array of data and stored as a JSON file.
   - `bidirectional-interactive-p5js`: Simple data visualization with bar chart and line graph
   - `test-serial-p5js`: Utility sketch to test connection and log data
+  - `test-serial-p5js`: Utility sketch to test connection and log data
 
 - **arduino-sketches**: Example Arduino sketches
   - `basic-sensor`: Send analog sensor data
@@ -666,57 +778,6 @@ The `examples/` directory contains complete working examples for both P5.js and 
   - `ble-esp32.ino`: BLE example for ESP32
 
 
-### Bluetooth Setup
-
-There are two ways to use Bluetooth with Serial Bridge, depending on your hardware:
-
-**1. Classic Bluetooth (HC-05, HC-06, ESP32 Classic)**
-*   **Hardware:** Arduino Uno/Mega with HC-05 module, or ESP32 in Classic mode.
-*   **How it works:** The operating system creates a virtual Serial Port (COM port) for the device.
-*   **In Serial Bridge:** Treat this exactly like a USB connection.
-    1.  Pair the device in your computer's Bluetooth settings.
-    2.  In Serial Bridge, click **"+ New Connection"**.
-    3.  Select **Type: USB / Serial** (NOT Bluetooth).
-    4.  Select the device's port from the list.
-
-**2. Bluetooth Low Energy (BLE) - Arduino Uno R4 WiFi / Nano 33 BLE**
-*   **Hardware:** Newer boards with built-in BLE.
-*   **How it works:** Direct communication without a COM port.
-*   **In Serial Bridge:** Use the dedicated Bluetooth mode.
-    1.  Upload a BLE example sketch (e.g., `ble-uno-r4.ino`).
-    2.  In Serial Bridge, click **"+ New Connection"**.
-    3.  Select **Type: Bluetooth**.
-    4.  Click **"Scan"**, select your device, and click **"Connect"**.
-
-## Project Structure
-
-```
-SerialBridge/
-├── main.js                 # Electron main process & Express server
-├── preload.js              # Electron preload script for IPC
-├── notch-manager.js        # Logic for macOS Dynamic Notch notifications
-├── settings-manager.js     # Persistent settings management
-├── entitlements.mac.plist  # macOS security entitlements (Network/Bluetooth)
-├── public/                 # Bridge application UI & client library
-│   ├── index.html          # Main application interface
-│   ├── styles.css          # Application styling
-│   ├── client.js           # UI logic and connection management
-│   └── serial-bridge.js    # Client library for P5.js projects
-├── examples/               # Example projects & Arduino sketches
-│   ├── p5js-sketches/      # P5.js visualization examples
-│   └── arduino-sketches/   # Arduino code examples
-├── assets/                 # Application icons & documentation images
-├── scripts/                # Build and utility scripts
-└── dist/                   # Compiled application output
-```
-
-### Key Files
-
-- **main.js**: Server-side logic for serial port communication and WebSocket handling
-- **client.js**: Browser-side UI for managing connections
-- **notch-manager.js**: Handles the floating notification window on macOS
-- **serial-bridge.js**: Simple API library that P5.js projects use to receive data
-
 ## Configuration
 
 ### Baud Rate
@@ -728,7 +789,7 @@ The default baud rate is 9600. To use a different rate:
 Serial.begin(115200);
 
 // When connecting programmatically
-await bridge.connectArduino("device_1", "/dev/cu.usbmodem14101", 115200);
+await bridge.connectSerial("device_1", "/dev/cu.usbmodem14101", 115200);
 ```
 
 ### Server Port
@@ -749,7 +810,7 @@ let serverPort = 3000; // Change this to your preferred starting port
 
 ### Connection Issues
 
-**Problem**: Cannot connect to Arduino
+**Problem**: Cannot connect to Device (Arduino/ESP32)
 
 - Verify the Arduino is plugged in via USB
 - Check that no other application is using the serial port (close Arduino IDE Serial Monitor)
@@ -776,94 +837,34 @@ let serverPort = 3000; // Change this to your preferred starting port
 **Problem**: No data received
 
 - Verify Arduino is connected in the Bridge app (green status indicator)
-- Check Arduino ID matches (case-sensitive)
+- Check ID matches the one assigned to the Arduino in the Serial Bridge app (case sensitive)
 - Test with Arduino IDE Serial Monitor first
 
-## Data Smoothing (For Beginners)
+## Project Structure
 
-Sensors are noisy. They jitter, spike, and glitch. The Serial Bridge Client Library includes built-in functions to fix this without complex math.
-
-### 1. `bridge.smooth(id, value, factor)`
-*   **Best for:** Potentiometers, Light Sensors, Joysticks.
-*   **Math:** Exponential Moving Average (EMA).
-*   **What it does:** Makes values feel "heavy" and fluid, like a volume knob with resistance.
-
-**Parameters:**
-*   `id`: A unique name (string) to remember this sensor's history (e.g., "pot1").
-*   `value`: The raw number coming from the sensor right now.
-*   `factor`: How much smoothing to apply (0.0 to 1.0).
-    *   `0.1`: Very snappy (little smoothing).
-    *   `0.9`: Very slow/smooth (heavy smoothing).
-
-```javascript
-let cleanVal = bridge.smooth("pot1", rawValue, 0.8);
+```
+SerialBridge/
+├── main.js                 # Electron main process & Express server
+├── preload.js              # Electron preload script
+├── settings-manager.js     # Settings management
+├── src/
+│   └── notch-manager.js    # macOS Dynamic Notch logic
+├── public/                 # UI & Client Library
+│   ├── index.html
+│   ├── client.js
+│   ├── serial-bridge.js    # The library P5.js projects use
+│   ├── notch/              # Notch UI assets
+│   └── profiles/           # Device profile definitions
+├── examples/               # P5.js & Arduino examples
+└── assets/                 # Icons & Images
 ```
 
-### 2. `bridge.stable(id, value, frames)`
-*   **Best for:** Ultrasonic Sensors, IR Distance Sensors.
-*   **Math:** Median Filter.
-*   **What it does:** Ignores "glitches" and massive spikes by waiting to be sure the value is real.
+### Key Files
 
-**Parameters:**
-*   `id`: A unique name (string) to remember this sensor's history.
-*   `value`: The raw number coming from the sensor right now.
-*   `frames`: How many recent values to look at (default: 5). Higher = more stable but slower.
-
-```javascript
-let dist = bridge.stable("ultra1", rawValue, 5);
-```
-
-### 3. `bridge.kalman(id, value, R, Q)`
-*   **Best for:** Tracking moving objects (Advanced).
-*   **Math:** 1D Kalman Filter.
-*   **What it does:** Predicts movement to reduce noise while keeping speed.
-
-**Parameters:**
-*   `id`: A unique name (string) to remember this sensor's history.
-*   `value`: The raw number coming from the sensor right now.
-*   `R`: Measurement Noise (default: 1). Higher = Trust the sensor less (smoother).
-*   `Q`: Process Noise (default: 0.1). Higher = Expect more movement (faster).
-
-```javascript
-let pos = bridge.kalman("hand", rawValue, 1, 0.1);
-```
-
-### Example: Single Sensor
-If you only have one sensor sending a number (e.g., `"1023"`):
-
-```javascript
-bridge.onData("device_1", (data) => {
-    // 1. Convert text to number
-    let rawVal = Number(data);
-    
-    // 2. Smooth it
-    let smoothVal = bridge.smooth("mySensor", rawVal, 0.8);
-    
-    // 3. Use it
-    circle(width/2, height/2, smoothVal);
-});
-```
-
-### Example: Handling Multiple Sensors
-If your Arduino sends multiple values (e.g., `"1023,512"`), you must use a **unique ID** for each one so the bridge doesn't mix them up.
-
-```javascript
-bridge.onData("device_1", (data) => {
-    // 1. Split the text into two numbers
-    let values = split(data, ","); 
-    
-    let rawPot = Number(values[0]);   // 1023
-    let rawLight = Number(values[1]); // 512
-
-    // 2. Smooth them SEPARATELY using unique IDs ("myPot", "myLight")
-    let smoothPot = bridge.smooth("myPot", rawPot, 0.9);
-    let smoothLight = bridge.smooth("myLight", rawLight, 0.9);
-
-    // 3. Use the clean values
-    circle(100, 100, smoothPot);
-    rect(200, 200, smoothLight, 50);
-});
-```
+- **main.js**: Server-side logic for serial port communication and WebSocket handling
+- **client.js**: Browser-side UI for managing connections
+- **notch-manager.js**: Handles the floating notification window on macOS
+- **serial-bridge.js**: Simple API library that P5.js projects use to receive data
 
 ---
 
@@ -885,7 +886,7 @@ npm start
 - Write clear, simple code that beginners can understand
 - Add comments explaining non-obvious logic
 - Follow existing code formatting
-- Test with multiple Arduinos when possible
+- Test with multiple device/microcontrollers when possible
 
 ### Submitting Changes
 
@@ -942,7 +943,7 @@ Copyright © 2025 Irtiza Nasar. All rights reserved.
 - **[j3nsykes](https://github.com/j3nsykes)** - Additional Examples & Documentation
 
 
-## Credits
+## Built With
 
 Built with:
 

@@ -3,7 +3,7 @@ const { BrowserWindow, screen, app } = require('electron');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const { loadSettings } = require('./settings-manager');
+const { loadSettings } = require('../settings-manager');
 let notchWindow;
 let repositionNotch; // Define globally for enable/disable access
 let getInternalDisplay; // Define globally
@@ -93,16 +93,16 @@ function showNotch(type, message, icon) {
         console.error('[Notch] Error resizing for show:', e);
     }
 
-        if (notchWindow && !notchWindow.isDestroyed()) {
-            const settings = loadSettings();
-            console.log('[Notch] Triggering notch. Sound enabled:', settings.notchSoundsEnabled);
-            notchWindow.webContents.send('trigger-notch', { 
-                type, 
-                message, 
-                icon, 
-                soundEnabled: settings.notchSoundsEnabled 
-            });
-        }
+    if (notchWindow && !notchWindow.isDestroyed()) {
+        const settings = loadSettings();
+        console.log('[Notch] Triggering notch. Sound enabled:', settings.notchSoundsEnabled);
+        notchWindow.webContents.send('trigger-notch', {
+            type,
+            message,
+            icon,
+            soundEnabled: settings.notchSoundsEnabled
+        });
+    }
 
     // 2. Schedule Hide (Off-Screen)
     // Clear any existing timeout to prevent premature hiding
@@ -272,7 +272,7 @@ function createNotchWindow() {
     // The notch is a passive visual indicator. It should NEVER block clicks.
     notchWindow.setIgnoreMouseEvents(true, { forward: true });
 
-    notchWindow.loadFile(path.join(__dirname, 'public', 'notch.html'));
+    notchWindow.loadFile(path.join(__dirname, '../public/notch/notch.html'));
 
     notchWindow.once('ready-to-show', () => {
         // Force Dock to stay visible (fix for panel type hiding it)

@@ -8,7 +8,7 @@
  *   // or specify a custom URL/port:
  *   const bridge = new SerialBridge('http://localhost:3001');
  *
- *   bridge.onData('arduino_1', (data) => {
+ *   bridge.onData('device_1', (data) => {
  *     console.log('Received:', data);
  *   });
  */
@@ -97,42 +97,42 @@ class SerialBridge {
     }
 
     /**
-     * Register a callback for data from a specific Arduino
-     * @param {string} arduinoId - The Arduino ID (e.g., 'arduino_1') or '*' for all
+     * Register a callback for data from a specific device
+     * @param {string} id - The device ID (e.g., 'device_1') or '*' for all
      * @param {function} callback - Function to call when data is received
      */
-    onData(arduinoId, callback) {
-        if (!this.dataHandlers.has(arduinoId)) {
-            this.dataHandlers.set(arduinoId, []);
+    onData(id, callback) {
+        if (!this.dataHandlers.has(id)) {
+            this.dataHandlers.set(id, []);
         }
-        this.dataHandlers.get(arduinoId).push(callback);
+        this.dataHandlers.get(id).push(callback);
         return this;
     }
 
     /**
      * Register a callback for connection status changes
-     * @param {string} arduinoId - The Arduino ID (e.g., 'arduino_1') or '*' for all
+     * @param {string} id - The device ID (e.g., 'device_1') or '*' for all
      * @param {function} callback - Function to call when status changes (status, port, id)
      */
-    onStatus(arduinoId, callback) {
-        if (!this.statusHandlers.has(arduinoId)) {
-            this.statusHandlers.set(arduinoId, []);
+    onStatus(id, callback) {
+        if (!this.statusHandlers.has(id)) {
+            this.statusHandlers.set(id, []);
         }
-        this.statusHandlers.get(arduinoId).push(callback);
+        this.statusHandlers.get(id).push(callback);
         return this;
     }
 
     /**
-     * Send data to a specific Arduino
-     * @param {string} arduinoId - The Arduino ID (e.g., 'arduino_1')
+     * Send data to a specific device
+     * @param {string} id - The device ID (e.g., 'device_1')
      * @param {string} data - Data to send
      */
-    async send(arduinoId, data) {
+    async send(id, data) {
         try {
             const response = await fetch(`${this.serverUrl}/api/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: arduinoId, data: data })
+                body: JSON.stringify({ id: id, data: data })
             });
 
             const result = await response.json();
@@ -160,17 +160,17 @@ class SerialBridge {
     }
 
     /**
-     * Connect to an Arduino on a specific port
-     * @param {string} arduinoId - The Arduino ID (e.g., 'arduino_1')
+     * Connect to a serial device on a specific port
+     * @param {string} id - The device ID (e.g., 'device_1')
      * @param {string} portPath - The port path (e.g., '/dev/cu.usbmodem14101')
      * @param {number} baudRate - Baud rate (default: 9600)
      */
-    async connectArduino(arduinoId, portPath, baudRate = 9600) {
+    async connectSerial(id, portPath, baudRate = 9600) {
         try {
             const response = await fetch(`${this.serverUrl}/api/connect`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: arduinoId, portPath, baudRate })
+                body: JSON.stringify({ id, portPath, baudRate })
             });
 
             const result = await response.json();
@@ -179,21 +179,29 @@ class SerialBridge {
             }
             return result;
         } catch (error) {
-            console.error('Failed to connect Arduino:', error);
+            console.error('Failed to connect serial device:', error);
             throw error;
         }
     }
 
     /**
-     * Disconnect from an Arduino
-     * @param {string} arduinoId - The Arduino ID (e.g., 'arduino_1')
+     * @deprecated Use connectSerial() instead
      */
-    async disconnectArduino(arduinoId) {
+    async connectArduino(arduinoId, portPath, baudRate = 9600) {
+        console.warn('Deprecation Warning: connectArduino() is deprecated. Please use connectSerial() instead.');
+        return this.connectSerial(arduinoId, portPath, baudRate);
+    }
+
+    /**
+     * Disconnect from a serial device
+     * @param {string} id - The device ID
+     */
+    async disconnectSerial(id) {
         try {
             const response = await fetch(`${this.serverUrl}/api/disconnect`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: arduinoId })
+                body: JSON.stringify({ id })
             });
 
             const result = await response.json();
@@ -202,9 +210,17 @@ class SerialBridge {
             }
             return result;
         } catch (error) {
-            console.error('Failed to disconnect Arduino:', error);
+            console.error('Failed to disconnect serial device:', error);
             throw error;
         }
+    }
+
+    /**
+     * @deprecated Use disconnectSerial() instead
+     */
+    async disconnectArduino(arduinoId) {
+        console.warn('Deprecation Warning: disconnectArduino() is deprecated. Please use disconnectSerial() instead.');
+        return this.disconnectSerial(arduinoId);
     }
 
     /**

@@ -26,7 +26,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 
 // Import Notch Manager (Mac Only)
-const { initNotch, enableNotch, disableNotch, hasNotch } = require('./notch-manager');
+const { initNotch, enableNotch, disableNotch, hasNotch } = require('./src/notch-manager');
 
 // Import Settings Manager
 const { loadSettings, saveSettings, updateSetting } = require('./settings-manager');
@@ -352,14 +352,7 @@ function createWindow() {
         }
         return { action: 'allow' };
     });
-    // Handle external links
-    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        if (url.startsWith('http:') || url.startsWith('https:')) {
-            shell.openExternal(url);
-            return { action: 'deny' };
-        }
-        return { action: 'allow' };
-    });
+
 
     // Handle Bluetooth device selection
     mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
@@ -448,8 +441,7 @@ app.whenReady().then(() => {
         }
     }, 1000);
 
-    // Initialize Settings
-    const { loadSettings, saveSettings, updateSetting } = require('./settings-manager');
+
     // Aptabase initialized at top level
 
     const settings = loadSettings();
@@ -523,6 +515,13 @@ app.whenReady().then(() => {
     // Track App Quit
     // Explicitly close Notch Window on quit to prevent zombies
     app.on('before-quit', () => {
+        // Close all serial connections
+        connections.forEach((connection) => {
+            if (connection.port && connection.port.isOpen) {
+                connection.port.close();
+            }
+        });
+
         disableNotch();
         const settings = loadSettings();
         if (settings.analyticsEnabled) {
@@ -575,13 +574,7 @@ app.on('window-all-closed', () => {
     app.quit();
 });
 
-app.on('before-quit', () => {
-    connections.forEach((connection) => {
-        if (connection.port && connection.port.isOpen) {
-            connection.port.close();
-        }
-    });
-});
+
 
 app.on('activate', () => {
     // On macOS it's common to re-create a window in the app when the

@@ -19,7 +19,7 @@ textarea {
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url('fonts/Inter-Regular.ttf') format('truetype');
+    src: url('assets/fonts/Inter-Regular.ttf') format('truetype');
 }
 
 @font-face {
@@ -27,7 +27,7 @@ textarea {
     font-style: normal;
     font-weight: 500;
     font-display: swap;
-    src: url('fonts/Inter-Medium.ttf') format('truetype');
+    src: url('assets/fonts/Inter-Medium.ttf') format('truetype');
 }
 
 @font-face {
@@ -35,7 +35,7 @@ textarea {
     font-style: normal;
     font-weight: 600;
     font-display: swap;
-    src: url('fonts/Inter-SemiBold.ttf') format('truetype');
+    src: url('assets/fonts/Inter-SemiBold.ttf') format('truetype');
 }
 
 @font-face {
@@ -43,7 +43,7 @@ textarea {
     font-style: normal;
     font-weight: 700;
     font-display: swap;
-    src: url('fonts/Inter-Bold.ttf') format('truetype');
+    src: url('assets/fonts/Inter-Bold.ttf') format('truetype');
 }
 
 :root {
@@ -1851,4 +1851,26 @@ input:checked+.slider:before {
 
 .dynamic-server-url {
     color: var(--accent-success);
+}
+/* Modal Base Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.active {
+    display: flex;
+    opacity: 1;
 }

@@ -245,11 +245,11 @@ bridge.onData("*", (data, id) => {
 // Get available ports programmatically
 const ports = await bridge.getPorts();
 
-// Connect an Arduino programmatically
-await bridge.connectArduino("device_1", "/dev/cu.usbmodem14101", 9600);
+// Connect to a specific serial device
+bridge.connectSerial('device_1', '/dev/ttyUSB0');
 
 // Disconnect
-await bridge.disconnectArduino("device_1");
+await bridge.disconnectSerial("device_1");
 ```
 
 ## 🐻 Creating Custom Examples

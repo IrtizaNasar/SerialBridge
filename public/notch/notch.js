@@ -47,8 +47,8 @@ async function loadSound(name, url) {
 }
 
 // Preload Buffers
-loadSound('success', 'success.wav');
-loadSound('error', 'error.mp3');
+loadSound('success', '../assets/sounds/success.wav');
+loadSound('error', '../assets/sounds/error.mp3');
 
 function playPolishedSound(bufferName) {
     if (!soundBuffers[bufferName]) return;

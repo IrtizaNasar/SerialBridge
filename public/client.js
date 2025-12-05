@@ -34,81 +34,14 @@
 
     // ===== CONFIGURATION =====
     // BLE UART Service UUIDs (Nordic UART Service standard)
-    // BLE UART Service UUIDs (Nordic UART Service standard)
-    const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-    const UART_RX_CHAR_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // Write to this
-    const UART_TX_CHAR_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Read from this
+
 
     // ===== DEVICE PROFILES =====
-    const DEVICE_PROFILES = {
-        'generic_uart': {
-            name: 'Generic UART (Arduino/ESP32)',
-            service: UART_SERVICE_UUID,
-            characteristic: UART_TX_CHAR_UUID,
-            writeCharacteristic: UART_RX_CHAR_UUID,
-            parser: parseGenericUART
-        },
-        'muse_2': {
-            name: 'Muse 2 Headset',
-            service: 0xfe8d,
-            characteristics: {
-                '273e0003-4c4d-454d-96be-f03bac821358': 'eeg',
-                '273e000f-4c4d-454d-96be-f03bac821358': 'ppg',
-                '273e000a-4c4d-454d-96be-f03bac821358': 'accel',
-                '273e0009-4c4d-454d-96be-f03bac821358': 'gyro'
-            },
-            controlCharacteristic: '273e0001-4c4d-454d-96be-f03bac821358',
-            parser: parseMuseDispatcher
-        },
-        'heart_rate': {
-            name: 'Heart Rate Monitor (Whoop, Polar, Garmin, Generic)',
-            service: 0x180D,
-            characteristic: 0x2A37,
-            parser: parseHeartRate
-        }
-    };
 
-    // ===== PARSERS =====
+    // Profiles are now loaded from public/profiles/*.js into window.DEVICE_PROFILES
+    const DEVICE_PROFILES = window.DEVICE_PROFILES || {};
 
-    /**
-     * Parses standard BLE Heart Rate Measurement (0x2A37)
-     * Returns: { type: 'heart_rate', bpm: number, rr_intervals: number[] }
-     */
-    function parseHeartRate(value) {
-        const flags = value.getUint8(0);
-        const rate16Bits = flags & 0x1;
-        const result = { type: 'heart_rate' };
-        let offset = 1;
 
-        if (rate16Bits) {
-            result.bpm = value.getUint16(offset, true);
-            offset += 2;
-        } else {
-            result.bpm = value.getUint8(offset);
-            offset += 1;
-        }
-
-        const contactDetected = flags & 0x2;
-        const energyPresent = flags & 0x8;
-        const rrIntervalPresent = flags & 0x10;
-
-        if (energyPresent) {
-            result.energyExpended = value.getUint16(offset, true);
-            offset += 2;
-        }
-
-        if (rrIntervalPresent) {
-            const rrIntervals = [];
-            while (offset + 1 < value.byteLength) {
-                const rr = value.getUint16(offset, true);
-                rrIntervals.push(rr);
-                offset += 2;
-            }
-            result.rr_intervals = rrIntervals;
-        }
-
-        return result;
-    }
 
     // ===== STATE MANAGEMENT =====
     let connections = {};           // Stores all connection data (id -> connection object)
@@ -248,13 +181,27 @@
             const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
             const profile = DEVICE_PROFILES[profileKey];
 
-            console.log(`Scanning for profile: ${profile.name} (Service: ${profile.service})`);
+            // Update connection object with selected profile immediately
+            if (connections[id]) {
+                connections[id].profile = profileKey;
+            }
+
+            // Normalize service UUID
+            const serviceUuid = typeof profile.service === 'string' && profile.service.length > 20
+                ? profile.service.toLowerCase()
+                : profile.service;
+
+            console.log(`Scanning for profile: ${profile.name} (Service: ${serviceUuid})`);
 
             // Request device - this will trigger the IPC flow
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: [profile.service] }],
-                optionalServices: [profile.service]
-            });
+            // We explicitly add the service to optionalServices to avoid "Origin is not allowed" errors
+            const requestOptions = {
+                filters: [{ services: [serviceUuid] }],
+                optionalServices: [serviceUuid]
+            };
+            console.log('Requesting device with options:', JSON.stringify(requestOptions));
+
+            const device = await navigator.bluetooth.requestDevice(requestOptions);
 
             console.log('Device selected:', device.name);
             // If we get here, a device was selected via finalizeBLEConnection
@@ -370,21 +317,74 @@
     }
 
     // User clicked Connect - send selection to Main
-    window.finalizeBLEConnection = function (id) {
+    window.finalizeBLEConnection = async function (id) {
         const select = document.getElementById('ble_device_' + id);
         const deviceId = select.value;
 
-        if (deviceId && ipcRenderer) {
-            const connectBtn = document.getElementById('connect_' + id);
-            if (connectBtn) {
-                connectBtn.textContent = 'Connecting...';
-                connectBtn.disabled = true;
-            }
+        if (!deviceId) return;
 
-            // This will cause the await navigator.bluetooth.requestDevice to resolve
+        const connectBtn = document.getElementById('connect_' + id);
+        if (connectBtn) {
+            connectBtn.textContent = 'Connecting...';
+            connectBtn.disabled = true;
+        }
+
+        // Case 1: Scan is active. We just need to tell Electron to pick this device.
+        if (scanningConnectionId === id) {
             if (window.electron && window.electron.ipcRenderer) {
                 window.electron.ipcRenderer.send('bluetooth-device-selected', deviceId);
             }
+            return;
+        }
+
+        // Case 2: Scan ended (e.g. previous error). We need to re-request the device.
+        console.log('Scan not active, re-acquiring device...');
+
+        try {
+            // 1. Get Profile
+            const profileSelect = document.getElementById('ble_profile_' + id);
+            const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
+            const profile = DEVICE_PROFILES[profileKey];
+
+            // Update connection object with selected profile immediately
+            if (connections[id]) {
+                connections[id].profile = profileKey;
+            }
+
+            // Normalize UUID
+            const serviceUuid = typeof profile.service === 'string' && profile.service.length > 20
+                ? profile.service.toLowerCase()
+                : profile.service;
+
+            // 2. Start Request (Async)
+            // We don't await this yet, because we need to send the IPC to resolve it!
+            const requestOptions = {
+                filters: [{ services: [serviceUuid] }],
+                optionalServices: [serviceUuid]
+            };
+            const requestPromise = navigator.bluetooth.requestDevice(requestOptions);
+
+            // 3. Send IPC to select the device immediately
+            // Give a tiny delay to ensure requestDevice is registered in Electron
+            setTimeout(() => {
+                if (window.electron && window.electron.ipcRenderer) {
+                    window.electron.ipcRenderer.send('bluetooth-device-selected', deviceId);
+                }
+            }, 200);
+
+            // 4. Await the device
+            const device = await requestPromise;
+
+            // 5. Connect
+            await setupBLEDevice(device, id);
+
+        } catch (error) {
+            console.error('Re-acquisition failed:', error);
+            if (connectBtn) {
+                connectBtn.textContent = 'Connect';
+                connectBtn.disabled = false;
+            }
+            alert('Connection failed: ' + error.message);
         }
     };
 
@@ -505,16 +505,36 @@
             }
             const profile = DEVICE_PROFILES[profileKey];
 
+            // Normalize service UUID to lowercase if it's a string (standard names like 'heart_rate' are fine)
+            const serviceUuid = typeof profile.service === 'string' && profile.service.length > 20
+                ? profile.service.toLowerCase()
+                : profile.service;
+
             console.log(`Connecting using profile: ${profile.name}`);
+            console.log(`Target Service UUID: ${serviceUuid}`);
 
             console.log('Getting Service...');
             let service;
-            try {
-                service = await server.getPrimaryService(profile.service);
-            } catch (err) {
-                console.warn('First attempt to get service failed, retrying...', err);
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                service = await server.getPrimaryService(profile.service);
+            let retryCount = 0;
+            const MAX_RETRIES = 3;
+
+            while (retryCount < MAX_RETRIES) {
+                try {
+                    // Check connection state before requesting service
+                    if (!device.gatt.connected) {
+                        console.log('GATT disconnected during setup, reconnecting...');
+                        await device.gatt.connect();
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+
+                    service = await server.getPrimaryService(serviceUuid);
+                    break; // Success
+                } catch (err) {
+                    console.warn(`Attempt ${retryCount + 1} to get service ${serviceUuid} failed:`, err);
+                    retryCount++;
+                    if (retryCount === MAX_RETRIES) throw err;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
             }
 
             console.log('Getting Characteristics...');
@@ -721,106 +741,9 @@
     }
 
     // ===== DATA PARSERS =====
-    // Parse Generic UART data (text-based)
-    function parseGenericUART(dataView) {
-        const decoder = new TextDecoder('utf-8');
-        return decoder.decode(dataView);
-    }
+    // Parsers are now handled by individual profiles in public/profiles/*.js
 
-    // Dispatcher for Muse 2
-    function parseMuseDispatcher(dataView, type) {
-        switch (type) {
-            case 'eeg': return parseMuseEEG(dataView);
-            case 'ppg': return parseMusePPG(dataView);
-            case 'accel': return parseMuseAccel(dataView);
-            case 'gyro': return parseMuseGyro(dataView);
-            default: return null;
-        }
-    }
 
-    // Parse Muse 2 EEG
-    function parseMuseEEG(dataView) {
-        const byteLength = dataView.byteLength;
-        if (byteLength < 10) return null;
-
-        const packetIndex = dataView.getUint16(0, false); // Big Endian
-
-        // Helper to unpack 12-bit samples from a 3-byte block
-        function unpackSamples(offset) {
-            const b0 = dataView.getUint8(offset);
-            const b1 = dataView.getUint8(offset + 1);
-            const b2 = dataView.getUint8(offset + 2);
-
-            const s1 = (b0 << 4) | ((b1 & 0xF0) >> 4);
-            const s2 = ((b1 & 0x0F) << 8) | b2;
-
-            return [s1, s2];
-        }
-
-        const block1 = unpackSamples(2);
-        const block2 = unpackSamples(5);
-        const center = 2048;
-
-        const eegData = {
-            type: 'eeg',
-            timestamp: Date.now(),
-            index: packetIndex,
-            data: {
-                tp9: block1[0] - center,
-                af7: block1[1] - center,
-                af8: block2[0] - center,
-                tp10: block2[1] - center,
-                aux: 0
-            }
-        };
-
-        return JSON.stringify(eegData);
-    }
-
-    // Parse Muse 2 IMU (Accel/Gyro)
-    function parseMuseIMU(dataView, type, scale) {
-        if (dataView.byteLength < 8) return null;
-        const index = dataView.getUint16(0, false);
-        const x = dataView.getInt16(2, false) * scale;
-        const y = dataView.getInt16(4, false) * scale;
-        const z = dataView.getInt16(6, false) * scale;
-
-        return JSON.stringify({
-            type: type,
-            timestamp: Date.now(),
-            index: index,
-            data: { x, y, z }
-        });
-    }
-
-    function parseMuseAccel(dataView) {
-        // Scale factor: 0.0000610352 (2g range)
-        return parseMuseIMU(dataView, 'accel', 0.0000610352);
-    }
-
-    function parseMuseGyro(dataView) {
-        // Scale factor: 0.0074768 (245dps range)
-        return parseMuseIMU(dataView, 'gyro', 0.0074768);
-    }
-
-    // Parse Muse 2 PPG
-    // 3 channels: Ambient, IR, Red
-    function parseMusePPG(dataView) {
-        if (dataView.byteLength < 8) return null;
-        const index = dataView.getUint16(0, false);
-        // PPG values are usually 24-bit, but packed? 
-        // For now assuming 3x Uint16 for simplicity, will refine if needed.
-        const ch1 = dataView.getUint16(2, false);
-        const ch2 = dataView.getUint16(4, false);
-        const ch3 = dataView.getUint16(6, false);
-
-        return JSON.stringify({
-            type: 'ppg',
-            timestamp: Date.now(),
-            index: index,
-            data: { ch1, ch2, ch3 }
-        });
-    }
 
     function handleBLEData(event, connectionId, type = null) {
         const value = event.target.value;
@@ -870,52 +793,7 @@
         return USB_ICON;
     }
 
-    // Add a new BLE connection card to the UI
-    // This is called when the user clicks "New Connection" -> "Bluetooth"
-    function addBLEToUI(id, name) {
-        const container = document.getElementById('connections');
-        const emptyState = document.getElementById('empty-state');
-        if (emptyState) {
-            emptyState.style.display = 'none';
-        }
 
-        const card = document.createElement('div');
-        card.className = 'connection-card';
-        card.id = `card-${id}`;
-
-        const icon = getDeviceIcon(type, profileId);
-        card.innerHTML = `
-        <div class="card-header">
-            <div class="card-title">
-                <h3>Arduino ${getDisplayNumber(id)} (BLE)</h3>
-                <div class="connection-id-group">
-                    <label class="id-label">ID:</label>
-                    <input type="text" class="connection-id-input" id="id_input_${id}" value="${id}" disabled>
-                    <button class="btn-edit-id" onclick="window.editConnectionId('${id}')" title="Edit Connection ID">Edit</button>
-                </div>
-            </div>
-            <div class="status-badge status-connected" id="status_${id}">
-                <div class="status-dot"></div>
-                Connected
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Device Name</label>
-            <input type="text" class="form-control" value="${name}" disabled style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff;">
-        </div>
-
-        <div class="button-row">
-            <button class="btn btn-danger" onclick="window.disconnectBLE('${id}')" id="connect_${id}">Disconnect</button>
-            <button class="btn btn-danger" onclick="window.removeBLE('${id}')">Remove</button>
-        </div>
-
-        <div class="data-preview active" id="data_${id}">
-            <div class="data-line">Waiting for data...</div>
-        </div>
-    `;
-        container.prepend(div);
-    }
 
     window.disconnectBLE = function (id) {
         const conn = connections[id];
@@ -1015,89 +893,7 @@
         }
     };
 
-    // Start BLE Scan
-    window.scanBLE = async function (id) {
-        console.log('scanBLE called for:', id);
 
-        // Prevent rapid re-scanning which can cause Bluetooth API to hang
-        const now = Date.now();
-        if (now - lastScanTime < SCAN_COOLDOWN) {
-            console.log('Scan cooldown active, please wait...');
-            return;
-        }
-        lastScanTime = now;
-
-        // Cancel any existing scan for this card or others
-        if (scanningConnectionId) {
-            console.log('Cancelling active scan for', scanningConnectionId);
-            if (ipcRenderer) ipcRenderer.send('bluetooth-device-cancelled');
-            // Wait a bit for cancellation to process
-            await new Promise(resolve => setTimeout(resolve, 300));
-        }
-
-        scanningConnectionId = id;
-        const scanBtn = document.getElementById('scan_' + id);
-        const select = document.getElementById('ble_device_' + id);
-        const profileSelect = document.getElementById('ble_profile_' + id);
-
-        if (scanBtn) {
-            scanBtn.textContent = 'Scanning...';
-            scanBtn.className = 'btn'; // Reset class
-            scanBtn.disabled = false; // Keep enabled so user can click to Rescan
-        }
-        if (select) {
-            select.innerHTML = '<option>Scanning...</option>';
-            select.disabled = true;
-        }
-
-        // Get selected profile
-        const profileKey = profileSelect ? profileSelect.value : 'generic_uart';
-        const profile = DEVICE_PROFILES[profileKey];
-
-        console.log(`Scanning for profile: ${profile.name} (Service: ${profile.service})`);
-
-        try {
-            console.log('Calling navigator.bluetooth.requestDevice...');
-
-            // Request device - this will trigger the native Bluetooth picker
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: [profile.service] }],
-                optionalServices: [profile.service]
-            });
-
-            console.log('Device selected:', device.name);
-
-            // Device was selected, now connect to it
-            await setupBLEDevice(device, id);
-
-        } catch (error) {
-            console.error('BLE Scan Error:', error);
-
-            // Don't show alert for user cancellation
-            if (error.name !== 'NotFoundError' && error.name !== 'NotAllowedError' && !error.message.includes('User cancelled')) {
-                alert('Error scanning for devices: ' + error.message);
-            }
-
-            // Make sure to send cancellation to main process
-            if (ipcRenderer && error.name !== 'NotFoundError') {
-                ipcRenderer.send('bluetooth-device-cancelled');
-            }
-        } finally {
-            console.log('Scan complete, resetting scanningConnectionId');
-            scanningConnectionId = null;
-            if (scanBtn) {
-                scanBtn.disabled = false; // Re-enable scan button
-
-                // Reset button text based on whether devices were found
-                const select = document.getElementById('ble_device_' + id);
-                if (select && select.options.length > 1) {
-                    scanBtn.textContent = 'Rescan';
-                } else {
-                    scanBtn.textContent = 'Scan';
-                }
-            }
-        }
-    };
 
     window.removeBLE = function (id) {
         console.log('Removing BLE connection:', id);
