@@ -301,8 +301,3 @@ body {
     /* Clear warning shake */
     animation: icon-shake 0.5s ease-in-out 0.1s both;
 }
-
-/* Bluetooth specific: Pop in, then pulse? 
-   For now, let's just make the Bluetooth icon pop in nicely. 
-   If we want a continuous pulse, we'd need a separate class or nested element.
-*/

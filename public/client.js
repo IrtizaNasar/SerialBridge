@@ -956,8 +956,7 @@
             console.log('Restoring connection from server state:', data.id);
             // Create the card structure
             addConnection(data.id);
-            // Note: addConnection generates a default name. 
-            // Ideally, the server should send the name too, but for now this restores functionality.
+            // Note: addConnection generates a default name
         }
 
         updateConnectionStatus(data.id, data.status, data.port);

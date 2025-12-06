@@ -93,8 +93,7 @@
     function parseMusePPG(dataView) {
         if (dataView.byteLength < 8) return null;
         const index = dataView.getUint16(0, false);
-        // PPG values are usually 24-bit, but packed? 
-        // For now assuming 3x Uint16 for simplicity, will refine if needed.
+        // PPG values are 16-bit unsigned integers
         const ch1 = dataView.getUint16(2, false);
         const ch2 = dataView.getUint16(4, false);
         const ch3 = dataView.getUint16(6, false);

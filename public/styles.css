@@ -1735,7 +1735,6 @@ input:checked+.slider:before {
     border: 1px solid var(--border-primary);
     border-radius: 12px;
     margin-bottom: 0;
-    /* Single item for now */
     gap: 20px;
 }
 
@@ -1852,6 +1851,7 @@ input:checked+.slider:before {
 .dynamic-server-url {
     color: var(--accent-success);
 }
+
 /* Modal Base Styles */
 .modal {
     position: fixed;
