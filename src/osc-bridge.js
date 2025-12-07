@@ -72,12 +72,6 @@ function updateSettings(settings) {
                     });
 
                     // Handle Server Errors (e.g., Port Busy)
-                    // Note: node-osc Server doesn't expose a standard 'error' event easily in all versions,
-                    // but we wrap creation in try/catch. 
-                    // However, for async errors (like EADDRINUSE happening after bind), we might need to rely on process uncaughtException
-                    // or if the library supports it. 
-                    // Checking node-osc source, it uses dgram. socket is exposed via _sock or similar?
-                    // Actually, let's try to attach error listener to the underlying socket if possible.
                     if (oscServer._sock) {
                         oscServer._sock.on('error', (err) => {
                             console.error('[OSC] Server Socket Error:', err);
