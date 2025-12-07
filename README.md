@@ -8,7 +8,7 @@
 
 
 
-<img width="1412" alt="image" src="assets/docs/main-interface.png" />
+<img width="1412" alt="Serial Bridge Main Interface" src="public/assets/images/main-ui.png" />
 
 
 <p align="center">
@@ -75,7 +75,7 @@
 - **Editable Connection IDs**: Customize connection identifiers for better project organization
 - **Framework Agnostic**: Works with **P5.js, Three.js, React, Vue**, or vanilla HTML/JS
 
-  ![Serial Bridge Main UI](public/assets/images/main-ui.png)
+  ![Serial-Bridge](https://github.com/user-attachments/assets/371df7c8-a4e4-421f-90e5-00276cf921d6)
 
 
 
