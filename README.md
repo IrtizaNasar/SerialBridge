@@ -981,6 +981,15 @@ You can fully control this feature via the **Settings** menu:
 **Performance Note:**
 While the feature is designed to be extremely lightweight, disabling it will completely destroy the background notification window. This frees up memory and CPU resources, which can be useful if you are running on older hardware or need maximum performance for complex P5.js sketches.
 
+> [!TIP]
+> **Want to build similar notifications in your own Electron app?**
+> 
+> The core logic for this feature has been extracted into a standalone library: **[electron-dynamic-island](https://github.com/IrtizaNasar/electron-dynamic-island)**
+> 
+> This library provides a buttery-smooth, native-feeling Dynamic Island experience for Electron apps. It reverse-engineers the behavior of macOS's private APIs by calculating precise notch coordinates and managing transparent, click-through windows with hardware-accelerated CSS transitions that mimic Apple's spring physics.
+> 
+> Originally built for Serial Bridge's device status updates, it's now available as a polished, standalone package for any Electron developer looking to create native-quality notifications without writing Swift code.
+
 ## Examples
 
 The `examples/` directory contains complete working examples for both P5.js and Arduino.
