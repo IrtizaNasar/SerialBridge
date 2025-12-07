@@ -26,6 +26,7 @@
     "@aptabase/electron": "^0.3.1",
     "@serialport/parser-readline": "^12.0.0",
     "express": "^4.18.2",
+    "node-osc": "^11.1.1",
     "serialport": "^12.0.0",
     "socket.io": "^4.7.4"
   },
@@ -44,6 +45,7 @@
       "main.js",
       "preload.js",
       "src/notch-manager.js",
+      "src/osc-bridge.js",
       "settings-manager.js",
       "package.json",
       "public/**/*",

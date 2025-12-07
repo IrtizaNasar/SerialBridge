@@ -30,6 +30,7 @@ const { initNotch, enableNotch, disableNotch, hasNotch } = require('./src/notch-
 
 // Import Settings Manager
 const { loadSettings, saveSettings, updateSetting } = require('./settings-manager');
+const oscBridge = require('./src/osc-bridge');
 const { initialize, trackEvent } = require('@aptabase/electron/main');
 
 // Initialize Aptabase IMMEDIATELY (Before app is ready)
@@ -39,6 +40,7 @@ initialize('A-EU-9940066759');
 let connections = new Map(); // Stores active serial port connections (id -> {port, parser})
 let serverPort = 3000;       // Default server port (will auto-increment if busy)
 let bluetoothCallback = null; // Callback for Bluetooth device selection
+let mainWindow; // Main window reference
 
 
 /**
@@ -143,6 +145,9 @@ function createServer() {
                     console.log('[DATA] ' + id + ': ' + cleanData);
                     // Broadcast data to all connected web clients via WebSocket
                     io.emit('serial-data', { id, data: cleanData });
+
+                    // Broadcast via OSC
+                    oscBridge.send('/serial', id, cleanData);
                 }
             });
 
@@ -264,6 +269,9 @@ function createServer() {
                 id: data.device, // Use device name as ID
                 data: data.data
             });
+
+            // Broadcast via OSC
+            oscBridge.send('/serial', data.device, data.data);
         });
 
         // Relay BLE connection status from Electron renderer to P5.js clients
@@ -299,8 +307,8 @@ function createServer() {
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1300,
-        height: 1000,
+        width: 1430,
+        height: 1100,
         webPreferences: {
             nodeIntegration: false, // Security: Disable Node.js integration in renderer
             contextIsolation: true, // Security: Protect against prototype pollution
@@ -310,10 +318,17 @@ function createWindow() {
         title: 'Serial Bridge',
         titleBarStyle: 'hiddenInset',
         backgroundColor: '#050505',
-        minWidth: 800,
-        minHeight: 600,
+        minWidth: 1000,
+        minHeight: 700,
         icon: path.join(__dirname, 'public/assets/images/logo.png')
     });
+
+    // Enforce minimum window size
+    mainWindow.setMinimumSize(1000, 700);
+
+
+    // Update OSC Bridge with new window
+    oscBridge.setMainWindow(mainWindow);
 
     // Add basic context menu (Copy/Paste/Inspect)
     const { Menu, MenuItem } = require('electron');
@@ -414,6 +429,55 @@ ipcMain.handle('bluetooth-pairing-request', async (event, serviceUuid) => {
     }
 });
 
+// Handle Analytics Events from Renderer
+ipcMain.handle('track-event', (event, eventName, props) => {
+    const settings = loadSettings();
+    if (settings.analyticsEnabled) {
+        trackEvent(eventName, props);
+    }
+});
+
+// Settings IPC Handlers
+ipcMain.handle('get-settings', () => {
+    return loadSettings();
+});
+
+ipcMain.handle('has-notch', () => {
+    return hasNotch();
+});
+
+// Handle Settings Updates
+ipcMain.handle('update-setting', (event, key, value) => {
+    try {
+        console.log(`[SETTINGS] Updating ${key} to ${value}`);
+        const newSettings = updateSetting(key, value);
+
+        // Handle specific side effects
+        if (key === 'notchEnabled') {
+            if (value) enableNotch();
+            else disableNotch();
+        }
+
+        if (key === 'analyticsEnabled') {
+            if (value) trackEvent('analytics_opt_in');
+            else trackEvent('analytics_opt_out');
+        }
+
+        // Broadcast new settings to all windows
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('settings-updated', newSettings);
+        }
+
+        // Update OSC Bridge
+        oscBridge.updateSettings(newSettings);
+
+        return newSettings;
+    } catch (error) {
+        console.error('[SETTINGS] Error updating setting:', error);
+        throw error;
+    }
+});
+
 
 
 
@@ -466,52 +530,10 @@ app.whenReady().then(() => {
     // Initialize Dynamic Notch (macOS Only)
     initNotch(ipcMain, settings.notchEnabled);
 
-    // Settings IPC Handlers
-    ipcMain.handle('get-settings', () => {
-        return loadSettings();
-    });
-
-    ipcMain.handle('has-notch', () => {
-        return hasNotch();
-    });
-
-    // Handle Settings Updates
-    ipcMain.handle('update-setting', (event, key, value) => {
-        try {
-            console.log(`[SETTINGS] Updating ${key} to ${value}`);
-            const newSettings = updateSetting(key, value);
-
-            // Handle specific side effects
-            if (key === 'notchEnabled') {
-                if (value) enableNotch();
-                else disableNotch();
-            }
-
-            if (key === 'analyticsEnabled') {
-                if (value) trackEvent('analytics_opt_in');
-                else trackEvent('analytics_opt_out');
-            }
-
-            // Broadcast new settings to all windows
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('settings-updated', newSettings);
-            }
-
-            return newSettings;
-        } catch (error) {
-            console.error('[SETTINGS] Error updating setting:', error);
-            throw error;
-        }
-    });
+    // Initialize OSC Bridge
+    oscBridge.init(settings, connections, mainWindow);
 
     // Handle Analytics Events from Renderer
-    ipcMain.handle('track-event', (event, eventName, props) => {
-        const settings = loadSettings();
-        if (settings.analyticsEnabled) {
-            trackEvent(eventName, props);
-        }
-    });
-
     // Track App Quit
     // Explicitly close Notch Window on quit to prevent zombies
     app.on('before-quit', () => {

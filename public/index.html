@@ -7,8 +7,7 @@
     <title>Serial Bridge</title>
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws:;">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=7">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 
@@ -85,21 +84,34 @@
                         </svg>
                         Load Session
                     </div>
-
                 </div>
-
-
             </div>
+
+
+
 
             <div class="sidebar-footer">
                 <div class="nav-item" onclick="window.showUsageInfo()">
-                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <path d="M12 17h.01"></path>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
                     </svg>
                     Usage Guide
+                </div>
+
+                <div style="height: 1px; background-color: rgba(255, 255, 255, 0.1); margin: 8px 12px;"></div>
+
+                <div class="nav-item" onclick="window.openBroadcastModal()">
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M14.83 9.17a4 4 0 0 1 0 5.66"></path>
+                        <path d="M17.66 6.34a8 8 0 0 1 0 11.32"></path>
+                        <line x1="12" y1="12" x2="12" y2="12"></line>
+                    </svg>
+                    OSC Settings
+                    <span id="osc-status-indicator"
+                        style="margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background-color: #333; display: block;"></span>
                 </div>
                 <div id="settings-nav-btn" class="nav-item" onclick="window.openSettingsModal()">
                     <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -109,7 +121,7 @@
                             d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
                         </path>
                     </svg>
-                    Settings
+                    App Settings
                 </div>
             </div>
         </aside>
@@ -146,19 +158,21 @@
                 <div class="modal-header-title">Usage Guide</div>
             </div>
 
-            <div class="modal-visual">
-                <div class="visual-icon-box">
-                    <img src="assets/images/logo.png" alt="App Logo" class="visual-app-logo">
-                </div>
-                <div class="visual-connector">
-                    <span></span><span></span><span></span><span></span><span></span>
-                </div>
-                <div class="visual-icon-box">
-                    <div class="visual-icon p5">P5</div>
-                </div>
-            </div>
 
             <div class="modal-body-content">
+                <div class="modal-visual">
+                    <div class="visual-icon-box">
+                        <img src="assets/images/logo.png" alt="App Logo" class="visual-app-logo">
+                    </div>
+                    <div class="visual-connector">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                    <div class="visual-icon-box">
+                        <div class="visual-icon p5">P5</div>
+                    </div>
+                </div>
+
+
                 <!-- Card 1: Setup -->
                 <div class="usage-card">
                     <h3>Connect your sketch</h3>
@@ -225,10 +239,11 @@ function setup() {
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal">
-        <div class="modal-backdrop" onclick="window.closeSettingsModal()"></div>
+        <div class="modal-backdrop" onclick="window.closeSettingsModal()">
+        </div>
         <div class="modal-content" style="max-width: 520px;">
             <div class="modal-header-bar">
-                <div class="modal-header-title">Settings</div>
+                <div class="modal-header-title">App Settings</div>
             </div>
 
             <div class="modal-body-content">
@@ -284,6 +299,80 @@ function setup() {
         </div>
     </div>
 
+    <!-- Broadcast Modal -->
+    <div id="broadcast-modal" class="modal">
+        <div class="modal-backdrop" onclick="window.closeBroadcastModal()">
+        </div>
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header-bar">
+                <div class="modal-header-title">OSC Settings</div>
+            </div>
+
+            <div class="modal-body-content">
+                <!-- BROADCAST SECTION -->
+                <div class="setting-item">
+                    <div>
+                        <h4>Enable OSC Broadcasting</h4>
+                        <p>Stream data to TouchDesigner, Max/MSP, or Python via OSC.</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="osc-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div id="osc-config-group"
+                    style="margin-top: 16px; display: none; padding-left: 12px; border-left: 2px solid rgba(255,255,255,0.1);">
+                    <div class="form-group">
+                        <label class="form-label">Target Host (IP)</label>
+                        <input type="text" id="osc-host" class="form-control" value="127.0.0.1"
+                            style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                    </div>
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label class="form-label">Target Port</label>
+                        <input type="number" id="osc-port" class="form-control" value="3333"
+                            style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                    </div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 8px;">
+                        <p>Data is sent to address <code>/serial</code> with arguments <code>[DeviceID, Data]</code>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- RECEIVE SECTION -->
+                <div style="height: 1px; background-color: rgba(255, 255, 255, 0.1); margin: 24px 0;"></div>
+
+                <div class="setting-item">
+                    <div>
+                        <h4>Enable OSC Receiving</h4>
+                        <p>Listen for incoming OSC commands.</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="osc-receive-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div id="osc-receive-config-group"
+                    style="margin-top: 16px; display: none; padding-left: 12px; border-left: 2px solid rgba(255,255,255,0.1);">
+                    <div class="form-group">
+                        <label class="form-label">Receive Port (Incoming)</label>
+                        <input type="number" id="osc-receive-port" class="form-control" value="3334"
+                            style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                    </div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 8px;">
+                        <p>Send commands to address <code>/send</code> with arguments <code>[DeviceID, Message]</code>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer-action">
+                <button class="modal-main-button" onclick="window.closeBroadcastModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Custom Error Modal -->
     <div id="error-modal" class="modal-overlay">
         <div class="modal-card error-card">
@@ -311,7 +400,7 @@ function setup() {
     <script src="profiles/generic-uart.js"></script>
     <script src="profiles/muse.js"></script>
     <script src="profiles/heart-rate.js"></script>
-    <script src="client.js?v=13"></script>
+    <script src="client.js?v=14"></script>
 </body>
 
 </html>

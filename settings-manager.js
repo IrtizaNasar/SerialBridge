@@ -8,7 +8,12 @@ const settingsPath = path.join(userDataPath, 'settings.json');
 const defaultSettings = {
     notchEnabled: true,
     notchSoundsEnabled: false,
-    analyticsEnabled: true
+    analyticsEnabled: true,
+    oscEnabled: false,
+    oscHost: '127.0.0.1',
+    oscPort: 3333,
+    oscReceiveEnabled: false,
+    oscReceivePort: 3334
 };
 
 function loadSettings() {

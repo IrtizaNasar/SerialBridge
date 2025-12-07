@@ -4,7 +4,7 @@
 
 <h1 align="center">Serial Bridge</h1>
 
-<p align="center"> A desktop application that bridges <b>USB and Bluetooth</b> devices (Arduino, ESP32, Muse 2, Whoop, etc.) to web-based creative coding environments like P5.js. Connect multiple devices simultaneously and access their data through a simple JavaScript API.</p>
+<p align="center"> A desktop application that bridges <b>USB and Bluetooth</b> devices to web-based creative coding environments. Connect multiple devices simultaneously, access their data through a simple JavaScript API, or <b>broadcast via OSC</b> to any compatible software.</p>
 
 
 
@@ -28,6 +28,7 @@
 - **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
 - **Smart Error Handling**: Intelligent detection of "Port Busy" states (USB) with actionable troubleshooting steps.
+- **OSC Integration**: Bidirectional OSC support. Stream sensor data to **TouchDesigner, Max/MSP, Python**, and control your devices remotely.
 - **Dynamic Notch Notifications (macOS Only)**: Native-style notifications with **sound effects** that integrate with your MacBook's notch for connection status updates.
 
 ## Table of Contents
@@ -43,6 +44,8 @@
 - [Device Profiles](#device-profiles)
   - [Muse 2 Support](#muse-2-support)
   - [Heart Rate Monitor Support](#heart-rate-monitor-support)
+
+- [OSC Integration (Broadcasting & Receiving)](#osc-integration-broadcasting--receiving)
 - [API Reference](#api-reference)
 - [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
 - [Session Management](#session-management)
@@ -70,8 +73,9 @@
 - **Bluetooth Support**: Connect via USB Serial or Bluetooth Low Energy (BLE)
 - **Device Profiles**: Built-in support for complex sensors like Muse 2
 - **Editable Connection IDs**: Customize connection identifiers for better project organization
+- **Framework Agnostic**: Works with **P5.js, Three.js, React, Vue**, or vanilla HTML/JS
 
-  ![Serial-Bridge](https://github.com/user-attachments/assets/371df7c8-a4e4-421f-90e5-00276cf921d6)
+  ![Serial Bridge Main UI](public/assets/images/main-ui.png)
 
 
 
@@ -226,6 +230,9 @@ void loop() {
 
 > [!TIP] > **Quick Setup**: Use the [p5.js Project Generator](https://marketplace.visualstudio.com/items?itemName=Irti.p5js-project-generator) VS Code extension to instantly generate a P5.js 2.0 project structure.
 
+> [!NOTE]
+> **Language Note**: While the examples below use **P5.js** for simplicity, the Serial Bridge client library is **vanilla JavaScript** and works with **any** web framework (React, Vue, Three.js, plain HTML/JS, etc.). Unless otherwise specified (e.g., "Python Integration"), code snippets use JavaScript.
+
 Include the client library in your HTML:
 
 ```html
@@ -308,6 +315,154 @@ There are two ways to use Bluetooth with Serial Bridge, depending on your hardwa
     3.  Select **Type: Bluetooth**.
     4.  Click **"Scan"**, select your device, and click **"Connect"**.
 
+## OSC Integration (Broadcasting & Receiving)
+
+Serial Bridge can broadcast your sensor data to other applications in real-time using **OSC (Open Sound Control)** or **Socket.IO**. This allows you to monitor data in the Serial Bridge app while simultaneously processing it in Python, TouchDesigner, Max/MSP, or any other software that supports OSC.
+
+### 1. Python Integration (Recommended)
+You can read data in Python using the `python-socketio` library. This works on Windows, macOS, and Linux.
+
+**Installation:**
+```bash
+pip install "python-socketio[client]"
+```
+
+**Basic Example (Reading Data by Device ID):**
+```python
+import socketio
+
+# Create a Socket.IO client
+sio = socketio.Client()
+
+@sio.event
+def connect():
+    print("Connected to Serial Bridge!")
+
+# This function runs whenever data is received from ANY device
+@sio.on('serial-data')
+def on_message(data):
+    # 'data' is a dictionary with two keys:
+    # 1. 'id': The Device ID you assigned in the app (e.g., 'device_1', 'arduino_A')
+    # 2. 'data': The actual value sent by the device
+    
+    device_id = data['id']
+    value = data['data']
+    
+    # Example: Filter by Device ID
+    if device_id == 'device_1':
+        print(f"Received from Device 1: {value}")
+        
+    elif device_id == 'arduino_A':
+        print(f"Received from Arduino A: {value}")
+        
+    # Print everything
+    # print(f"[{device_id}] {value}")
+
+# Connect to the Serial Bridge app (default port 3000)
+try:
+    sio.connect('http://localhost:3000')
+    sio.wait() # Keep the script running
+except Exception as e:
+    print(f"Connection failed: {e}")
+```
+
+### 2. OSC Broadcasting (Sending Data)
+
+Stream sensor data from Serial Bridge to other apps (TouchDesigner, Max/MSP, etc.).
+
+**Status Indicator:**
+The small green dot next to "OSC Settings" in the sidebar indicates that **either** Broadcasting OR Receiving is active.
+
+**How to Enable:**
+1. Click **"OSC Settings"** in the sidebar footer.
+2. Toggle **"Enable OSC Broadcasting"** to ON.
+3. (Optional) Configure the Target IP and Port (Default: `127.0.0.1` : `3333`).
+
+**Protocol:**
+- **Address:** `/serial`
+- **Arguments:** `[DeviceID, Data]`
+
+**TouchDesigner Setup:**
+1. Add an **OSC In** CHOP.
+2. Set Network Port to `3333`.
+3. You will see channels like `/serial/device_1`.
+
+**Python via OSC:**
+If you prefer OSC over Socket.IO (e.g., for lower latency on local networks):
+```bash
+pip install python-osc
+```
+**Python Code:**
+```python
+from pythonosc.dispatcher import Dispatcher
+from pythonosc.osc_server import BlockingOSCUDPServer
+import json
+
+def handle_data(address, *args):
+    # OSC Message format: /serial <device_id> <data>
+    device_id = args[0]
+    raw_data = args[1]
+    
+    print(f"[{device_id}] {raw_data}")
+
+dispatcher = Dispatcher()
+dispatcher.map("/serial", handle_data)
+
+server = BlockingOSCUDPServer(("127.0.0.1", 3333), dispatcher)
+print("Listening on port 3333...")
+server.serve_forever()
+```
+
+> **Note for Windows Users:** Python is not included with Serial Bridge. You must install Python separately from [python.org](https://www.python.org/) to run these scripts. The Serial Bridge app itself runs independently and does not require Python.
+
+### 3. OSC Receiving (Controlling Devices)
+
+Control your Arduino or other devices by sending OSC messages TO Serial Bridge.
+
+**How to Enable:**
+1. Click **"OSC Settings"** in the sidebar footer.
+2. Toggle **"Enable OSC Receiving"** to ON.
+3. (Optional) Configure the Listen Port (Default: `3334`).
+
+**Protocol:**
+- **Address:** `/send`
+- **Arguments:** `[DeviceID, Message]`
+
+**Example: Python Controller**
+```python
+from pythonosc.udp_client import SimpleUDPClient
+
+ip = "127.0.0.1"
+port = 3334 # Note: Different from the broadcast port (3333)
+
+client = SimpleUDPClient(ip, port)
+
+# Send "LED_ON" to device_1
+client.send_message("/send", ["device_1", "LED_ON"])
+print("Sent LED_ON to device_1")
+```
+
+**Example: Arduino Sketch**
+```cpp
+void setup() {
+  Serial.begin(9600);
+  pinMode(LED_BUILTIN, OUTPUT);
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    command.trim(); // Remove whitespace
+
+    if (command == "LED_ON") {
+      digitalWrite(LED_BUILTIN, HIGH);
+    } else if (command == "LED_OFF") {
+      digitalWrite(LED_BUILTIN, LOW);
+    }
+  }
+}
+```
+
 ## Device Profiles
 
 Serial Bridge includes built-in profiles for specific hardware devices. These profiles automatically handle connection protocols, data parsing, and formatting, making it effortless to work with complex sensors.
@@ -335,6 +490,7 @@ This allows researchers and developers to build biofeedback applications without
 
 When using the Muse profile, data is streamed as JSON objects. You may need to parse the data if it arrives as a string.
 
+**JavaScript**
 ```javascript
 // Connect to Serial Bridge
 bridge = new SerialBridge(); // Auto-detects URL from socket.io script
@@ -360,6 +516,43 @@ bridge.onData("device_1", (data) => {
 });
 ```
 
+#### Python Integration 
+
+```python
+import socketio
+
+sio = socketio.Client()
+
+@sio.on('serial-data')
+def on_message(data):
+    device_id = data['id']
+    payload = data['data']
+    
+    # Ensure this is a dictionary (JSON object)
+    if isinstance(payload, dict):
+        
+        # 1. EEG Data (type: 'eeg')
+        if payload.get('type') == 'eeg':
+            eeg = payload['data']
+            print(f"[{device_id}] EEG: TP9={eeg['tp9']}, AF7={eeg['af7']}, AF8={eeg['af8']}, TP10={eeg['tp10']}")
+            
+        # 2. PPG / Heart Rate (type: 'ppg')
+        elif payload.get('type') == 'ppg':
+            ppg = payload['data']
+            print(f"[{device_id}] PPG: {ppg['ch1']}, {ppg['ch2']}, {ppg['ch3']}")
+            
+        # 3. Accelerometer (type: 'accel')
+        elif payload.get('type') == 'accel':
+            acc = payload['data']
+            print(f"[{device_id}] Accel: X={acc['x']}, Y={acc['y']}, Z={acc['z']}")
+
+try:
+    sio.connect('http://localhost:3000')
+    sio.wait()
+except Exception as e:
+    print(f"Connection failed: {e}")
+```
+
 ### Heart Rate Monitor Support
 
 Serial Bridge supports any device that uses the standard **Bluetooth Heart Rate Profile (BLE)**. This includes most modern fitness trackers and chest straps.
@@ -381,13 +574,13 @@ When using the **"Heart Rate Monitor"** profile, data is streamed as JSON object
 - **`rr_intervals`** *(Optional)*: An array of integers representing the time between beats (in 1/1024s).
     - **Note:** This field is **only present if your device supports RR-Interval broadcasting** (e.g., Whoop, Polar H10). Cheaper sensors or some watches may not send this data.
 
+**JavaScript:**
 ```javascript
 // Listen for data from your heart rate monitor
 bridge.onData("device_1", (data) => {
     // Parse if string, otherwise use directly
     let parsed = typeof data === 'string' ? JSON.parse(data) : data;
-
-    if (parsed.type === 'heart_rate') {
+   if (parsed.type === 'heart_rate') {
         // 1. Heart Rate (Always available)
         console.log("Heart Rate:", parsed.bpm);
 
@@ -398,6 +591,37 @@ bridge.onData("device_1", (data) => {
         }
     }
 });
+```
+
+#### Python Integration 
+
+```python
+import socketio
+
+sio = socketio.Client()
+
+@sio.on('serial-data')
+def on_message(data):
+    device_id = data['id']
+    payload = data['data']
+    
+    # Ensure this is a dictionary (JSON object)
+    if isinstance(payload, dict) and payload.get('type') == 'heart_rate':
+        
+        # 1. Heart Rate (Always available)
+        bpm = payload['bpm']
+        print(f"[{device_id}] Heart Rate: {bpm} BPM")
+        
+        # 2. RR-Intervals (Optional, if supported by device)
+        if 'rr_intervals' in payload:
+            rr = payload['rr_intervals']
+            print(f"[{device_id}] RR Intervals: {rr}")
+
+try:
+    sio.connect('http://localhost:3000')
+    sio.wait()
+except Exception as e:
+    print(f"Connection failed: {e}")
 ```
 
 
@@ -670,6 +894,7 @@ Click the **"Save Session"** button in the sidebar to export your current connec
 - Connection types (USB/Bluetooth)
 - Port configurations and baud rates
 - Device identifiers for Bluetooth
+- **OSC settings** (broadcasting/receiving configuration, host, and ports)
 
 **Use Cases:**
 - **Gallery Installations**: Save your setup and quickly restore it if the app restarts
@@ -707,10 +932,16 @@ Sessions are saved as human-readable JSON files:
       "name": "LED Controller",
       "type": "ble",
       "deviceId": "ABC123",
-      "deviceName": "Uno R4 Bridge"
+      "deviceName": "Uno R4 Bridge",
+      "profile": "generic_uart"
     }
-  }
-}
+  },
+  "osc": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 3333,
+    "receiveEnabled": false,
+    "receivePort": 3334
   }
 }
 ```

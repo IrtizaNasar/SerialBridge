@@ -70,8 +70,37 @@
                     updateBLEDeviceList(scanningConnectionId, deviceList);
                 }
             });
+
+            // Handle OSC Errors (e.g. Port Busy)
+            ipcRenderer.on('osc-error', (event, { type, port, message }) => {
+                console.error(`[OSC] Error on ${type} port ${port}: ${message}`);
+                showErrorModal(
+                    'OSC Port Error',
+                    `The <strong>${type === 'receive' ? 'Receiving' : 'Broadcast'} Port (${port})</strong> is already in use by another application.<br><br>` +
+                    'Please choose a different port in <strong>Broadcast Settings</strong>.'
+                );
+
+                // Optionally turn off the toggle in UI to reflect failure
+                if (type === 'receive') {
+                    const toggle = document.getElementById('osc-receive-toggle');
+                    if (toggle) {
+                        toggle.checked = false;
+                        // Trigger change event to update settings? 
+                        // Or just let user do it manually. Let's just update UI visually for now.
+                        const receiveGroup = document.getElementById('osc-receive-config-group');
+                        if (receiveGroup) receiveGroup.style.display = 'none';
+                    }
+                }
+            });
         } else {
             console.warn('IPC Renderer not available. BLE selection might fail.');
+        }
+
+        // Initialize Broadcast Indicator
+        if (ipcRenderer) {
+            ipcRenderer.invoke('get-settings').then(settings => {
+                updateBroadcastUI(settings);
+            });
         }
 
         // Prevent default context menu, except in code snippets (for copying)
@@ -783,6 +812,7 @@
     // Custom Icons (User Selected)
     const BRAINWAVE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h3l2-9 4 18 4-18 3 9h4"></path></svg>`;
     const HEART_PULSE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>`;
+    const BROADCAST_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`;
 
     function getDeviceIcon(type, profileId) {
         if (profileId === 'muse_2') return BRAINWAVE_ICON;
@@ -2114,7 +2144,7 @@
      * Exports connection names, types, ports, and settings
      * Does NOT save runtime state (connected/disconnected status)
      */
-    window.saveSession = function () {
+    window.saveSession = async function () {
         console.log('Saving session...');
 
         // Create configuration object
@@ -2142,6 +2172,23 @@
                 config.connections[id].profile = conn.profile;
             }
         }
+
+        // Add OSC settings if available
+        if (window.electron && window.electron.ipcRenderer) {
+            try {
+                const settings = await window.electron.ipcRenderer.invoke('get-settings');
+                config.osc = {
+                    enabled: settings.oscEnabled || false,
+                    host: settings.oscHost || '127.0.0.1',
+                    port: settings.oscPort || 3333,
+                    receiveEnabled: settings.oscReceiveEnabled || false,
+                    receivePort: settings.oscReceivePort || 3334
+                };
+            } catch (err) {
+                console.warn('Could not retrieve OSC settings:', err);
+            }
+        }
+
 
         // Convert to JSON
         const jsonString = JSON.stringify(config, null, 2);
@@ -2173,7 +2220,7 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function (event) {
+            reader.onload = async function (event) {
                 try {
                     const config = JSON.parse(event.target.result);
 
@@ -2319,8 +2366,37 @@
                         }
                     }
 
+                    // Restore OSC settings if available
+                    if (config.osc && window.electron && window.electron.ipcRenderer) {
+                        try {
+                            await window.electron.ipcRenderer.invoke('update-setting', 'oscEnabled', config.osc.enabled);
+                            await window.electron.ipcRenderer.invoke('update-setting', 'oscHost', config.osc.host);
+                            await window.electron.ipcRenderer.invoke('update-setting', 'oscPort', config.osc.port);
+                            await window.electron.ipcRenderer.invoke('update-setting', 'oscReceiveEnabled', config.osc.receiveEnabled);
+                            await window.electron.ipcRenderer.invoke('update-setting', 'oscReceivePort', config.osc.receivePort);
+
+                            // Update UI to reflect loaded OSC settings
+                            const oscToggle = document.getElementById('osc-toggle');
+                            const oscHost = document.getElementById('osc-host');
+                            const oscPort = document.getElementById('osc-port');
+                            const oscReceiveToggle = document.getElementById('osc-receive-toggle');
+                            const oscReceivePort = document.getElementById('osc-receive-port');
+
+                            if (oscToggle) oscToggle.checked = config.osc.enabled;
+                            if (oscHost) oscHost.value = config.osc.host;
+                            if (oscPort) oscPort.value = config.osc.port;
+                            if (oscReceiveToggle) oscReceiveToggle.checked = config.osc.receiveEnabled;
+                            if (oscReceivePort) oscReceivePort.value = config.osc.receivePort;
+
+                            console.log('OSC settings restored');
+                        } catch (err) {
+                            console.warn('Could not restore OSC settings:', err);
+                        }
+                    }
+
                     console.log('Session loaded successfully');
                     alert('Session loaded successfully!');
+
 
                 } catch (error) {
                     console.error('Error loading session:', error);
@@ -2419,12 +2495,167 @@
     };
 
     window.onunhandledrejection = function (event) {
+        // Prevent infinite loops if the error is about the tracker itself
+        const msg = event.reason ? (event.reason.message || String(event.reason)) : 'Unknown';
+        if (msg.includes('track-event')) return;
+
         if (window.electron && window.electron.ipcRenderer) {
             window.electron.ipcRenderer.invoke('track-event', 'error', {
                 process: 'renderer',
                 type: 'unhandledRejection',
-                message: event.reason ? event.reason.message : String(event.reason)
+                message: msg
+            }).catch(err => {
+                // Silently fail if tracking fails to avoid loops
+                console.warn('[Analytics] Failed to track error:', err);
             });
         }
     };
+    // ========================================
+    // BROADCAST / OSC MODAL
+    // ========================================
+    window.openBroadcastModal = async function () {
+        const modal = document.getElementById('broadcast-modal');
+        if (modal) {
+            modal.classList.add('active');
+            // Load current settings
+            if (window.electron && window.electron.ipcRenderer) {
+                const settings = await window.electron.ipcRenderer.invoke('get-settings');
+                updateBroadcastUI(settings);
+            }
+        }
+    };
+
+    window.closeBroadcastModal = function () {
+        const modal = document.getElementById('broadcast-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    };
+
+    function updateBroadcastUI(settings) {
+        const oscToggle = document.getElementById('osc-toggle');
+        const oscHost = document.getElementById('osc-host');
+        const oscPort = document.getElementById('osc-port');
+        const oscReceiveToggle = document.getElementById('osc-receive-toggle');
+        const oscReceivePort = document.getElementById('osc-receive-port');
+        const configGroup = document.getElementById('osc-config-group');
+        const receiveConfigGroup = document.getElementById('osc-receive-config-group');
+        const indicator = document.getElementById('osc-status-indicator'); // Added this line to define indicator
+
+        if (oscToggle) oscToggle.checked = settings.oscEnabled;
+        if (configGroup) configGroup.style.display = settings.oscEnabled ? 'block' : 'none';
+
+        if (oscHost) oscHost.value = settings.oscHost || '127.0.0.1';
+        if (oscPort) oscPort.value = settings.oscPort || 3333;
+
+        if (oscReceiveToggle) oscReceiveToggle.checked = settings.oscReceiveEnabled;
+        if (receiveConfigGroup) receiveConfigGroup.style.display = settings.oscReceiveEnabled ? 'block' : 'none';
+        if (oscReceivePort) oscReceivePort.value = settings.oscReceivePort || 3334;
+
+        // Update indicator
+        if (indicator) {
+            const isActive = settings.oscEnabled || settings.oscReceiveEnabled;
+            indicator.style.backgroundColor = isActive ? '#10b981' : '#333';
+            indicator.style.boxShadow = isActive ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none';
+        }
+    }
+
+    // Event Listeners for Broadcast Modal
+    try {
+        const oscToggle = document.getElementById('osc-toggle');
+        const oscHost = document.getElementById('osc-host');
+        const oscPort = document.getElementById('osc-port');
+        const oscReceiveToggle = document.getElementById('osc-receive-toggle');
+        const oscReceivePort = document.getElementById('osc-receive-port');
+
+        if (oscToggle) {
+            oscToggle.addEventListener('change', async (e) => {
+                const enabled = e.target.checked;
+                console.log('[CLIENT] Toggle OSC clicked. New state:', enabled);
+
+                const configGroup = document.getElementById('osc-config-group');
+                const indicator = document.getElementById('osc-status-indicator');
+
+                if (configGroup) configGroup.style.display = enabled ? 'block' : 'none';
+
+                // Update indicator immediately
+                if (indicator) {
+                    const receiveEnabled = document.getElementById('osc-receive-toggle').checked;
+                    const isActive = enabled || receiveEnabled;
+                    indicator.style.backgroundColor = isActive ? '#10b981' : '#333';
+                    indicator.style.boxShadow = isActive ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none';
+                }
+
+                if (window.electron && window.electron.ipcRenderer) {
+                    await window.electron.ipcRenderer.invoke('update-setting', 'oscEnabled', enabled);
+
+                    // Trigger Notch Notification
+                    if (enabled) {
+                        triggerNotch('success', 'Broadcasting OSC', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
+                    } else {
+                        triggerNotch('disconnect', 'OSC Broadcasting Stopped', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
+                    }
+
+                    // Track Event
+                    window.electron.ipcRenderer.invoke('track-event', 'osc_broadcast_toggled', {
+                        enabled: enabled
+                    });
+                }
+            });
+        }
+
+        if (oscReceiveToggle) {
+            oscReceiveToggle.addEventListener('change', async (e) => {
+                const enabled = e.target.checked;
+                const receiveGroup = document.getElementById('osc-receive-config-group');
+                if (receiveGroup) receiveGroup.style.display = enabled ? 'block' : 'none';
+
+                // Update indicator immediately
+                const indicator = document.getElementById('osc-status-indicator');
+                if (indicator) {
+                    const broadcastEnabled = document.getElementById('osc-toggle').checked;
+                    const isActive = enabled || broadcastEnabled;
+                    indicator.style.backgroundColor = isActive ? '#10b981' : '#333';
+                    indicator.style.boxShadow = isActive ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none';
+                }
+
+                if (window.electron && window.electron.ipcRenderer) {
+                    await window.electron.ipcRenderer.invoke('update-setting', 'oscReceiveEnabled', enabled);
+
+                    // Trigger Notch Notification
+                    if (enabled) {
+                        triggerNotch('success', 'Receiving OSC', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
+                    } else {
+                        triggerNotch('disconnect', 'OSC Receiving Stopped', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
+                    }
+
+                    // Track Event
+                    window.electron.ipcRenderer.invoke('track-event', 'osc_receive_toggled', {
+                        enabled: enabled
+                    });
+                }
+            });
+        }
+
+        function saveOSCConfig() {
+            const host = document.getElementById('osc-host').value;
+            const port = parseInt(document.getElementById('osc-port').value);
+            const receivePort = parseInt(document.getElementById('osc-receive-port').value);
+            const receiveEnabled = document.getElementById('osc-receive-toggle').checked;
+
+            if (window.electron && window.electron.ipcRenderer) {
+                window.electron.ipcRenderer.invoke('update-setting', 'oscHost', host);
+                window.electron.ipcRenderer.invoke('update-setting', 'oscPort', port);
+                window.electron.ipcRenderer.invoke('update-setting', 'oscReceivePort', receivePort);
+                window.electron.ipcRenderer.invoke('update-setting', 'oscReceiveEnabled', receiveEnabled);
+            }
+        }
+
+        if (oscHost) oscHost.addEventListener('change', saveOSCConfig);
+        if (oscPort) oscPort.addEventListener('change', saveOSCConfig);
+        if (oscReceivePort) oscReceivePort.addEventListener('change', saveOSCConfig);
+    } catch (err) {
+        console.error('[CLIENT] Error initializing Broadcast listeners:', err);
+    }
+
 })();
