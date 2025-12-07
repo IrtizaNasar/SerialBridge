@@ -114,8 +114,7 @@ function showNotch(type, message, icon) {
                 // Move OFF-SCREEN (Don't hide, keep renderer hot)
                 const { x } = targetDisplay.bounds;
                 notchWindow.setPosition(x, -10000);
-                notchWindow.setSize(1, 1); // Minimize footprint
-                // notchWindow.hide(); // REMOVED: Causes lag on next show
+                notchWindow.setSize(1, 1);
             } catch (e) {
                 console.error('[Notch] Error hiding:', e);
             }
@@ -259,9 +258,8 @@ function createNotchWindow() {
         },
         backgroundColor: '#00000000',
         type: 'panel', // RESTORED: Needed for correct layering (fixes "screenshot but invisible" bug)
-        focusable: false, // Critical: Never take focus
-        // vibrancy: 'hud', // REMOVED: Caused gray box
-        skipTaskbar: true, // CRITICAL: Fixes "Space Switch" issue. Decouples window from main app space.
+        focusable: false,
+        skipTaskbar: true,
         hiddenInMissionControl: true, // REQUIRED: Allows floating over fullscreen apps
         fullscreenable: false, // Critical: Prevent window from becoming a space
         enableLargerThanScreen: true, // Allow positioning off-screen
