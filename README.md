@@ -429,7 +429,7 @@ Control your Arduino or other devices by sending OSC messages TO Serial Bridge.
 - **Arguments:** `[DeviceID, Message]`
 
 > [!NOTE]
-> **For p5.js Users:** OSC Receiving is designed for external applications (TouchDesigner, Max/MSP, Python) to control your Arduino. If you want to send data from p5.js to Arduino, use the [Serial Bridge JavaScript API](#send) instead with `bridge.send('device_1', 'LED_ON')`.
+> **For p5.js Users:** OSC Receiving is designed for external applications (TouchDesigner, Max/MSP, Python) to control your Arduino. If you want to send data from p5.js to Arduino, use the [Serial Bridge JavaScript API](#sendid-data) instead with `bridge.send('device_1', 'LED_ON')`.
 
 **Example: Python Controller**
 ```python
