@@ -374,7 +374,7 @@ function createWindow() {
         event.preventDefault();
         console.log('Main: select-bluetooth-device triggered. Devices:', deviceList.length);
 
-        // Debug: Log device properties to see what's available
+        // Log device properties
         deviceList.forEach((device, index) => {
             console.log(`Device ${index}:`, {
                 deviceName: device.deviceName,
