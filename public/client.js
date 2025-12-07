@@ -85,8 +85,6 @@
                     const toggle = document.getElementById('osc-receive-toggle');
                     if (toggle) {
                         toggle.checked = false;
-                        // Trigger change event to update settings? 
-                        // Or just let user do it manually. Let's just update UI visually for now.
                         const receiveGroup = document.getElementById('osc-receive-config-group');
                         if (receiveGroup) receiveGroup.style.display = 'none';
                     }
@@ -308,7 +306,6 @@
 
             let selectionFound = false;
             deviceList.forEach(device => {
-                // Debug: Log what we're receiving
                 // console.log('Client: Processing device:', device);
 
                 const option = document.createElement('option');
@@ -619,7 +616,7 @@
                     connections[targetId].keepAliveInterval = setInterval(async () => {
                         if (connections[targetId] && connections[targetId].status === 'connected' && controlChar) {
                             try {
-                                // Just read the value to keep connection active without sending data
+                                // Read the value to keep connection active without sending data
                                 await controlChar.readValue();
                                 // console.log('Muse 2: Keep-Alive read success');
                             } catch (e) {
@@ -652,8 +649,7 @@
                 connections[targetId].device = device;
                 connections[targetId].status = 'connected';
                 connections[targetId].device = device;
-                connections[targetId].manualDisconnect = false; // Reset manual flag
-                // connections[targetId].name = device.name; // REMOVED: Do not overwrite user-defined card title
+                connections[targetId].manualDisconnect = false;
 
                 // Emit status to Socket.IO for p5.js and other clients
                 socket.emit('connection-status', {
@@ -1663,12 +1659,7 @@
                 // The socket event will also update it, but this ensures immediate feedback
                 updateConnectionStatus(id, 'connected', selectedPort);
 
-                // We don't trigger notch here for Serial because the socket event will handle it
-                // and we want to avoid double notifications.
-                // Actually, let's do it here because we have the context of the user action.
-                // But wait, if we do it here, we need to make sure the socket event doesn't trigger it again.
-                // Let's rely on the socket event for consistency across all clients?
-                // No, the notch is local to this Electron window.
+
 
                 const deviceName = connections[id].name || 'Serial Device';
                 triggerNotch('success', deviceName + ' Connected', 'serial');
@@ -1697,16 +1688,7 @@
                 connectBtn.textContent = 'Connect';
                 connectBtn.disabled = false;
 
-                // Check for the specific "Port Busy" error type we added in main.js
-                // We need to parse the error message if it came from our fetch call
-                // The fetch throws an Error(result.error), but we can't easily attach extra props to the Error object
-                // So we'll check the error message text or handle it differently.
-                // Actually, let's look at how we threw the error: throw new Error(result.error);
-                // We lost the errorType there. Let's fix the throw first.
-
-                // Wait, I can't fix the throw inside this replacement block easily without changing more code.
-                // Let's adjust the logic above the catch block to pass the full result object if possible,
-                // or just check the error message content since we also put the message in the error.
+                // Check error message for specific error types
 
                 if (error.message.includes('Access denied') || error.message.includes('Resource busy')) {
                     showErrorModal(
@@ -2417,7 +2399,7 @@
         }, 500);
     }
 
-    // Debug helper
+    // Helper function for logging
     window.debugConnections = function () {
         console.log('Current Connections:', connections);
         console.log('Keys:', Object.keys(connections));
