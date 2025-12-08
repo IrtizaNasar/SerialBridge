@@ -383,9 +383,18 @@ The small green dot next to "OSC Settings" in the sidebar indicates that **eithe
 - **Arguments:** `[DeviceID, Data]`
 
 **TouchDesigner Setup:**
-1. Add an **OSC In** CHOP.
-2. Set Network Port to `3333`.
-3. You will see channels like `/serial/device_1`.
+
+> [!TIP]
+> **Drag-and-Drop Component Available!** Download [`SerialBridge_TD.tox`](examples/touchdesigner/SerialBridge_TD.tox), drag it into TouchDesigner, and you're done. Supports multiple devices simultaneously with automatic channel creation. See [`examples/touchdesigner/`](examples/touchdesigner/) for full documentation.
+
+1. Download [`SerialBridge_TD.tox`](examples/touchdesigner/SerialBridge_TD.tox)
+2. Drag into your TouchDesigner project
+3. All sensor data appears as CHOP channels automatically with device ID prefixes:
+   - `device_1_bpm`, `device_1_rr_0` (Heart Rate Monitor)
+   - `device_2_value` (Arduino/simple sensors)
+   - `device_3_eeg_tp9`, `device_3_ppg_ch1` (Muse 2)
+   - And more for all supported device profiles
+4. See [full documentation](examples/touchdesigner/) for channel filtering and multi-device support
 
 **Python via OSC:**
 If you prefer OSC over Socket.IO (e.g., for lower latency on local networks):

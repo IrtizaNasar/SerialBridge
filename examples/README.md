@@ -4,6 +4,19 @@ This folder contains examples demonstrating how to use the Serial Bridge with P5
 
 ## 📁 Contents
 
+### `/touchdesigner/`
+
+**Drag-and-drop OSC integration** for TouchDesigner. Automatically parses data from all connected devices into CHOP channels.
+
+**Quick Start:**
+1. Download `SerialBridge_TD.tox`
+2. Drag into TouchDesigner
+3. Done! All device data appears as channels
+
+**[See full documentation →](touchdesigner/README.md)**
+
+---
+
 ### `/p5js-sketches/`
 
 **How to use:**
