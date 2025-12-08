@@ -1004,7 +1004,12 @@ While the feature is designed to be extremely lightweight, disabling it will com
 
 ## Examples
 
-The `examples/` directory contains complete working examples for both P5.js and Arduino.
+The `examples/` directory contains complete working examples for P5.js, Arduino, and TouchDesigner.
+
+- **touchdesigner**:
+  - `SerialBridge_TD.tox`: Drag-and-drop component for TouchDesigner
+  - Multi-device OSC integration with automatic channel creation
+  - See [TouchDesigner README](examples/touchdesigner/README.md) for full documentation
 
 - **p5js-sketches**:
 
