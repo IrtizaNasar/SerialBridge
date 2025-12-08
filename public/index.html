@@ -312,8 +312,8 @@ function setup() {
                 <!-- BROADCAST SECTION -->
                 <div class="setting-item">
                     <div>
-                        <h4>Enable OSC Broadcasting</h4>
-                        <p>Stream data to TouchDesigner, Max/MSP, or Python via OSC.</p>
+                        <h4>Enable OSC Broadcasting (Send)</h4>
+                        <p>Send device data to a target IP address via OSC.</p>
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="osc-toggle">
@@ -344,8 +344,8 @@ function setup() {
 
                 <div class="setting-item">
                     <div>
-                        <h4>Enable OSC Receiving</h4>
-                        <p>Listen for incoming OSC commands.</p>
+                        <h4>Enable OSC Receiving (Listen)</h4>
+                        <p>Listen for incoming OSC commands from any source.</p>
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="osc-receive-toggle">
@@ -361,7 +361,8 @@ function setup() {
                             style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
                     </div>
                     <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 8px;">
-                        <p>Send commands to address <code>/send</code> with arguments <code>[DeviceID, Message]</code>.
+                        <p>Listens on this port for commands sent to <code>/send</code> with arguments
+                            <code>[DeviceID, Message]</code>. No target IP needed - accepts from any source.
                         </p>
                     </div>
                 </div>
