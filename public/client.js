@@ -580,12 +580,34 @@
                     }
                 }
             } else {
-                // Single characteristic support (Generic UART)
+                // Single characteristic support (Generic UART, Heart Rate, etc.)
                 const txChar = await service.getCharacteristic(profile.characteristic);
                 await txChar.startNotifications();
                 txChar.addEventListener('characteristicvaluechanged', (event) => {
                     handleBLEData(event, targetId);
                 });
+
+                // Keep-Alive Mechanism for Heart Rate Monitor
+                // Prevents idle timeout disconnections (Whoop, Polar, Garmin, etc.)
+                if (profileKey === 'heart_rate' && targetId && connections[targetId]) {
+                    console.log('Heart Rate Monitor: Starting Keep-Alive interval (90s)...');
+                    connections[targetId].keepAliveInterval = setInterval(async () => {
+                        if (connections[targetId] && connections[targetId].status === 'connected' && txChar) {
+                            try {
+                                // Read the value to keep connection active
+                                await txChar.readValue();
+                                // console.log('Heart Rate: Keep-Alive read success');
+                            } catch (e) {
+                                console.warn('Heart Rate: Keep-Alive failed:', e);
+                            }
+                        } else {
+                            // Stop if disconnected
+                            if (connections[targetId] && connections[targetId].keepAliveInterval) {
+                                clearInterval(connections[targetId].keepAliveInterval);
+                            }
+                        }
+                    }, 90000); // Every 90 seconds
+                }
             }
 
             // Track Analytics: Device Connected (BLE)
