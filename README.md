@@ -43,6 +43,7 @@
 - [Bluetooth Setup](#bluetooth-setup)
 - [Device Profiles](#device-profiles)
   - [Muse 2 Support](#muse-2-support)
+  - [Muse S (Athena) Support](#muse-s-athena-support)
   - [Heart Rate Monitor Support](#heart-rate-monitor-support)
 
 - [OSC Integration (Broadcasting & Receiving)](#osc-integration-broadcasting--receiving)
@@ -540,6 +541,14 @@ def on_message(data):
     device_id = data['id']
     payload = data['data']
     
+    # Parse JSON if needed
+    import json
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except:
+            return
+    
     # Ensure this is a dictionary (JSON object)
     if isinstance(payload, dict):
         
@@ -563,6 +572,247 @@ try:
     sio.wait()
 except Exception as e:
     print(f"Connection failed: {e}")
+```
+
+### Muse S (Athena) Support
+
+**Serial Bridge** unlocks the advanced research capabilities of the **Muse S (Gen 2 / Athena)** headband. While it can function like a standard Muse 2, it also provides access to:
+
+-   **fNIRS (functional Near-Infrared Spectroscopy)**: Raw 24-bit optical data for measuring blood oxygenation (hemodynamics) in the prefrontal cortex.
+-   **High-Frequency EEG**: Native support for **256Hz** streaming via batched samples.
+-   **IMU**: Accelerometer & Gyroscope for head motion tracking.
+
+#### Technical Specifications (Muse S Gen 2)
+
+| Feature | Specification |
+| :--- | :--- |
+| **Wireless** | BLE 5.3 (2.4 GHz) |
+| **EEG Channels** | 4 Channels (TP9, AF7, AF8, TP10) + Aux |
+| **Sample Rate** | 256 Hz (12-bit effective) |
+| **PPG / fNIRS** | Dual Sensor (Left/Right) @ 64 Hz |
+| **Wavelengths** | IR (850nm), Near-IR (730nm), Red (660nm) |
+| **Accelerometer** | 3-Axis @ 52Hz (16-bit range +/- 2G) |
+| **Gyroscope** | 3-Axis @ 52Hz (16-bit range +/- 250dps) |
+
+#### Calibrated Data Units (For Research)
+
+| Data Stream | Unit | Scale Factor | Range |
+| :--- | :--- | :--- | :--- |
+| **EEG** | **Microvolts (uV)** | ~0.488 uV / bit | -1000 to +1000 uV (approx) |
+| **fNIRS** | **Raw Intensity** | Unitless (24-bit) | 0 to 16,777,215 (Used for optical density Calc) |
+| **Accelerometer** | **G-Force (g)** | 1/16384 g / bit | ±2g / ±4g Range |
+| **Gyroscope** | **Degrees/Second (dps)** | ~0.0076 dps / bit | ±250 dps Range (approx) |
+
+#### How to Connect
+
+1.  Put your Muse S headband into pairing mode (lights oscillating).
+2.  In Serial Bridge, click **"+ New Connection"**.
+3.  Select **Bluetooth**.
+4.  **Important**: In the Device Profile dropdown, select **"Muse S (Athena)"**.
+5.  Click **"Scan"**, select your Muse device, and click **"Connect"**.
+
+#### 1. Calibration Logic (Essential for fNIRS)
+Raw optical values mean nothing on their own. You must calculate the **relative change** from a resting state.
+
+**JavaScript Calibration Function:**
+```javascript
+// Global variables to store our baseline
+let fnirsBaseline = null;
+let fnirsBuffer = [];
+
+function calibrateAndGetActivity(rawValue) {
+    // 1. Build Baseline (Wait ~3 seconds / 200 samples)
+    if (fnirsBuffer.length < 200) {
+        fnirsBuffer.push(rawValue);
+        return 0; // Still calibrating...
+    } 
+    
+    // 2. Calculate Average Baseline (Once)
+    if (fnirsBaseline === null) {
+        let sum = fnirsBuffer.reduce((a, b) => a + b, 0);
+        fnirsBaseline = sum / fnirsBuffer.length;
+        console.log("Calibration Complete! Baseline:", fnirsBaseline);
+    }
+    
+    // 3. Compare Current Value vs Baseline
+    // Simple Ratio: 1.0 = No Change, >1.0 = Increased Oxygen/Blood
+    return rawValue / fnirsBaseline;
+}
+```
+
+**Python Calibration Function:**
+```python
+baseline_buffer = []
+baseline_val = None
+
+def get_activity(raw_val):
+    global baseline_val
+    
+    # 1. Build Baseline
+    if len(baseline_buffer) < 200:
+        baseline_buffer.append(raw_val)
+        return 0.0
+        
+    # 2. Calculate Average
+    if baseline_val is None:
+        baseline_val = sum(baseline_buffer) / len(baseline_buffer)
+        print(f"Calibration Complete: {baseline_val}")
+        
+    # 3. Calculate Change (Beer-Lambert Proxy)
+    # Using Log10 is standard for Optical Density
+    import math
+    return -math.log10(raw_val / baseline_val)
+```
+
+#### 2. JavaScript: Simple Example (All Data)
+This example listens to **all** data streams and uses the calibration logic above.
+```javascript
+bridge.onData("device_1", (data) => {
+    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+    // --- 1. EEG Data (Averaged for Simplicity) ---
+    if (parsed.type === 'eeg') {
+        const d = parsed.data;
+        // Access all 4 channels individually
+        console.log(`EEG: TP9:${d.tp9} AF7:${d.af7} AF8:${d.af8} TP10:${d.tp10}`);
+    } 
+    
+    // --- 2. fNIRS Data (Optical) ---
+    // Check 'ppg' type OR 'eeg' type which often bundles 'ppg'
+    if (parsed.type === 'ppg' || (parsed.type === 'eeg' && parsed.ppg)) {
+        const d = parsed.type === 'eeg' ? parsed.ppg : parsed.data;
+        
+        // Left Sensor (Channels 1-3)
+        // Right Sensor (Channels 4-6)
+        
+        // Example: Calibrate & Visualize Left IR (Channel 2)
+        if (d && d.ch2) {
+            let activity = calibrateAndGetActivity(d.ch2);
+            console.log(`fNIRS Activity: ${activity.toFixed(4)}`);
+        }
+        
+        // Log all raw values if needed
+        // console.log("Raw:", d.ch1, d.ch2, d.ch3, d.ch4, d.ch5, d.ch6);
+    }
+    
+    // --- 3. Motion Data (Shared IMU) ---
+    else if (parsed.type === 'imu') {
+        const a = parsed.data.accel;
+        const g = parsed.data.gyro;
+        console.log(`Accel: X:${a.x} Y:${a.y} Z:${a.z}`);
+        console.log(`Gyro:  X:${g.x} Y:${g.y} Z:${g.z}`);
+    }
+});
+```
+
+#### 3. JavaScript: High-Fidelity 256Hz Example (EEG + fNIRS)
+Use this when you need every single sample (e.g., for drawing waveforms or fixing fNIRS timing). This method iterates through the mixed packet to find both EEG batches and interleaved fNIRS samples.
+
+```javascript
+bridge.onData("device_1", (data) => {
+    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+    // Check if the packet contains a batch of samples (Standard for Athena)
+    if (parsed.samples) {
+        // 'samples' is an ordered array of ALL events in this packet
+        // It guarantees correct time-ordering between EEG and fNIRS updates
+        
+        parsed.samples.forEach(sample => {
+            if (sample.type === 'eeg') {
+                // sample.rawSamples contains the array of 12 high-freq samples
+                // sample.value is just the AVERAGE of this batch (avoid using for 256Hz)
+                if (sample.rawSamples) {
+                    const samples = sample.rawSamples[sample.channel]; // Array of 12 floats
+                    samples.forEach(microvolts => {
+                        // Draw EVERY point (True 256Hz)
+                        drawWaveformPoint(sample.channel, microvolts);
+                    });
+                }
+            } 
+            else if (sample.type === 'ppg' || (sample.type === 'eeg' && sample.ppg)) {
+                // Interleaved fNIRS Update (64Hz)
+                const f = sample.type === 'eeg' ? sample.ppg : sample.data;
+                console.log(`fNIRS [${sample.index}]: L-IR:${f.ch2} R-IR:${f.ch5}`);
+            }
+        });
+    }
+});
+```
+
+#### 4. Python: Full Research Example
+Access all data streams with proper physics-based calibration.
+```python
+import socketio
+import math
+
+# [Insert Calibration Function Here]
+
+@sio.on('serial-data')
+def on_message(data):
+    # 'data' comes as {'id': 'device_1', 'data': '...'}
+    # The inner 'data' might be a JSON STRING, so we must parse it.
+    import json
+    
+    payload = data['data']
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except:
+            return # Ignore non-JSON strings
+            
+    # [A] EEG High-Fidelity (256Hz)
+    if payload.get('type') == 'eeg':
+        if 'rawSamples' in payload:
+            # Code to process EEG...
+            # raw = payload['rawSamples']
+            pass # Replace with actual processing if needed
+
+    # [B] fNIRS / Optical (64Hz)
+    # Check for 'ppg' type OR 'ppg' field inside 'eeg' type
+    if payload.get('type') == 'ppg' or (payload.get('type') == 'eeg' and 'ppg' in payload):
+        ppg = payload.get('ppg') if payload.get('type') == 'eeg' else payload.get('data')
+        
+        # Calculate Activity for left IR channel (channel 2)
+        if ppg and 'ch2' in ppg:
+            activity = get_activity(ppg['ch2'])
+            print(f"fNIRS Activity: {activity:.4f}")
+        print(f"Raw Left: {ppg['ch1']}, {ppg['ch2']}, {ppg['ch3']}")
+        print(f"Raw Right: {ppg['ch4']}, {ppg['ch5']}, {ppg['ch6']}")
+
+    # --- 3. IMU (Motion) ---
+    elif payload.get('type') == 'imu':
+        imu = payload['data']
+        acc = imu['accel']
+        gyro = imu['gyro']
+        print(f"Acc: {acc['x']:.2f}, {acc['y']:.2f}, {acc['z']:.2f}")
+        print(f"Gyro: {gyro['x']:.2f}, {gyro['y']:.2f}, {gyro['z']:.2f}")
+
+# Connect...
+```}
+});
+```
+
+**Python (High-Fidelity Analysis)**
+For research-grade analysis, use the `rawSamples` array to get every single sample (256Hz) without downsampling.
+
+```python
+@sio.on('serial-data')
+def on_message(data):
+    payload = data['data']
+    
+    if payload.get('type') == 'eeg':
+        # Check for high-fidelity batch data
+        if 'rawSamples' in payload:
+            samples = payload['rawSamples']
+            # Access full 256Hz buffers for all 4 channels
+            # Each key contains a list of 12 floats
+            print(f"TP9: {len(samples['tp9'])}, AF7: {len(samples['af7'])}, AF8: {len(samples['af8'])}, TP10: {len(samples['tp10'])}")
+            
+    elif payload.get('type') == 'ppg':
+        # fNIRS / Optical Data (6 Channels)
+        ppg = payload['data']
+        print(f"L-Amb: {ppg['ch1']}, L-IR: {ppg['ch2']}, L-Red: {ppg['ch3']}")
+        print(f"R-Amb: {ppg['ch4']}, R-IR: {ppg['ch5']}, R-Red: {ppg['ch6']}")
 ```
 
 ### Heart Rate Monitor Support
@@ -1208,8 +1458,9 @@ Built with:
 - [Express](https://expressjs.com/) - Web server
 - [Socket.IO](https://socket.io/) - WebSocket communication
 - [SerialPort](https://serialport.io/) - Serial port access
+- [node-osc](https://github.com/MylesBorins/node-osc) - Open Sound Control (OSC) support
+- [Web Bluetooth](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) - BLE Device Support
 - [Aptabase](https://aptabase.com/) - Privacy-first analytics
-- [ArduinoBLE](https://www.arduino.cc/reference/en/libraries/arduinoble/) - Bluetooth Low Energy support
 
 Designed for use with [P5.js](https://p5js.org/) - a friendly tool for learning to code and make art.
 

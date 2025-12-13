@@ -84,6 +84,8 @@
                 if (type === 'receive') {
                     const toggle = document.getElementById('osc-receive-toggle');
                     if (toggle) {
+                        // DEBUG: Check if we are receiving ANY data
+                        console.log(`Data received from ${type} (${uuid})`, event.target.value);
                         toggle.checked = false;
                         const receiveGroup = document.getElementById('osc-receive-config-group');
                         if (receiveGroup) receiveGroup.style.display = 'none';
@@ -584,6 +586,7 @@
                 const txChar = await service.getCharacteristic(profile.characteristic);
                 await txChar.startNotifications();
                 txChar.addEventListener('characteristicvaluechanged', (event) => {
+                    console.log(`Data received from characteristic ${profile.characteristic}`, event.target.value);
                     handleBLEData(event, targetId);
                 });
 
@@ -618,40 +621,84 @@
                 });
             }
 
-            // Special handling for Muse 2: Send start command
-            if (profile.controlCharacteristic) {
-                console.log('Muse 2: Getting Control Characteristic...');
+            // Start Sequence / Handshake Logic
+            if (profile.startSequence && Array.isArray(profile.startSequence)) {
+                console.log(`Executing Start Sequence for ${profile.name}...`);
                 const controlChar = await service.getCharacteristic(profile.controlCharacteristic);
-                console.log('Muse 2: Sending Start Command (d) with length prefix...');
+
+                for (const cmd of profile.startSequence) {
+                    console.log(`Sending Command: ${cmd.description || 'Unknown'}`);
+
+                    // Convert hex string or array to Uint8Array
+                    let commandBytes;
+                    if (Array.isArray(cmd.value)) {
+                        commandBytes = new Uint8Array(cmd.value);
+                    } else if (typeof cmd.value === 'string') {
+                        // Text command
+                        const enc = new TextEncoder();
+                        commandBytes = enc.encode(cmd.value);
+                    }
+
+                    await controlChar.writeValue(commandBytes);
+
+                    // Wait if delay is specified
+                    if (cmd.wait) {
+                        console.log(`Waiting ${cmd.wait}ms...`);
+                        await new Promise(r => setTimeout(r, cmd.wait));
+                    }
+                }
+                console.log('Start Sequence Complete!');
+            } else if (profile.controlCharacteristic) {
+                // Legacy: Special handling for Muse 2 (Hardcoded 'd' command)
+                // Kept strictly to ensure no regression for existing Muse 2 profile
+                console.log('Muse 2 (Legacy): Getting Control Characteristic...');
+                const controlChar = await service.getCharacteristic(profile.controlCharacteristic);
+                console.log('Muse 2 (Legacy): Sending Start Command (d) with length prefix...');
                 // Command: <length> <char> <newline>
-                // 0x02 = length of "d\n"
-                // 0x64 = 'd'
-                // 0x0a = '\n'
                 const command = new Uint8Array([0x02, 0x64, 0x0a]);
                 await controlChar.writeValue(command);
-                console.log('Muse 2: Start Command Sent!');
+                console.log('Muse 2 (Legacy): Start Command Sent!');
+            }
 
-                // Keep-Alive Mechanism
-                // Read control char every 60 seconds to prevent idle disconnect (Passive)
-                if (targetId && connections[targetId]) {
-                    console.log('Muse 2: Starting Optimized Keep-Alive interval (60s)...');
-                    connections[targetId].keepAliveInterval = setInterval(async () => {
-                        if (connections[targetId] && connections[targetId].status === 'connected' && controlChar) {
-                            try {
-                                // Read the value to keep connection active without sending data
-                                await controlChar.readValue();
-                                // console.log('Muse 2: Keep-Alive read success');
-                            } catch (e) {
-                                console.warn('Muse 2: Keep-Alive failed:', e);
-                            }
-                        } else {
-                            // Stop if disconnected
-                            if (connections[targetId] && connections[targetId].keepAliveInterval) {
-                                clearInterval(connections[targetId].keepAliveInterval);
-                            }
-                        }
-                    }, 60000);
+            // Keep-Alive Mechanism
+            // If the profile defines a keepAliveCmd, use it. Otherwise fall back to legacy Muse checks.
+            // Check if explicitly disabled (Athena throws GATT errors on read)
+            if (profile.enableKeepAlive !== false && (profile.keepAliveCmd || (profile.controlCharacteristic && targetId && connections[targetId]))) {
+                const keepAliveMs = profile.keepAliveInterval || 60000;
+                console.log(`Starting Keep-Alive interval (${keepAliveMs}ms)...`);
+
+                // Reuse control char reference if possible, otherwise get it
+                let keepAliveChar;
+                if (profile.controlCharacteristic) {
+                    keepAliveChar = await service.getCharacteristic(profile.controlCharacteristic);
                 }
+
+                connections[targetId].keepAliveInterval = setInterval(async () => {
+                    if (connections[targetId] && connections[targetId].status === 'connected' && keepAliveChar) {
+                        try {
+                            if (profile.keepAliveCmd) {
+                                // Send specific command
+                                let cmdBytes;
+                                if (typeof profile.keepAliveCmd === 'string') {
+                                    cmdBytes = new TextEncoder().encode(profile.keepAliveCmd);
+                                } else {
+                                    cmdBytes = new Uint8Array(profile.keepAliveCmd);
+                                }
+                                await keepAliveChar.writeValue(cmdBytes);
+                            } else {
+                                // Default Passive Read (Muse 2 behavior)
+                                await keepAliveChar.readValue();
+                            }
+                            // console.log('Keep-Alive read success');
+                        } catch (e) {
+                            console.warn('Keep-Alive failed:', e);
+                        }
+                    } else {
+                        if (connections[targetId] && connections[targetId].keepAliveInterval) {
+                            clearInterval(connections[targetId].keepAliveInterval);
+                        }
+                    }
+                }, keepAliveMs);
             }
 
             // Store profile parser in the connection object for use in handleBLEData
@@ -794,29 +841,34 @@
 
     function handleBLEData(event, connectionId, type = null) {
         const value = event.target.value;
-        // console.log(`BLE Data received for ${connectionId}`, value);
+        // console.log(`BLE Data received for ${connectionId}`, value.byteLength); // Trace raw size
 
         // Get the connection and its parser
         const connection = connections[connectionId];
         if (!connection || !connection.parser) {
-            // console.warn('No parser found for connection:', connectionId);
+            console.warn('No parser found for connection:', connectionId);
             return;
         }
 
-        // Use the connection's parser to decode the data
-        const parsedData = connection.parser(value, type);
+        try {
+            // Use the connection's parser to decode the data
+            const parsedData = connection.parser(value, type);
 
-        if (parsedData === null) {
-            // Parser returned null (invalid/incomplete packet)
-            console.warn('Parser returned null for data');
-            return;
+            if (parsedData === null) {
+                // Parser returned null (invalid/incomplete packet)
+                console.warn('Parser returned null for data. RAW:', new Uint8Array(value.buffer).slice(0, 10));
+                return;
+            }
+
+            // Forward to socket
+            socket.emit('ble-data', { device: connectionId, data: parsedData });
+
+            // Update UI using standard function
+            displaySerialData(connectionId, parsedData);
+
+        } catch (e) {
+            console.error("Parser Error:", e);
         }
-
-        // Forward to socket
-        socket.emit('ble-data', { device: connectionId, data: parsedData });
-
-        // Update UI using standard function
-        displaySerialData(connectionId, parsedData);
     }
 
     // ========================================
