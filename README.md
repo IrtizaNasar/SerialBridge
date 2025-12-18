@@ -576,10 +576,10 @@ except Exception as e:
 
 ### Muse S (Athena) Support
 
-**Serial Bridge** unlocks the advanced research capabilities of the **Muse S (Gen 2 / Athena)** headband. While it can function like a standard Muse 2, it also provides access to:
+**Serial Bridge** unlocks the advanced research capabilities of the **Muse S (Gen 2 / Athena)** headband. In addition to standard EEG, this tool provides exclusive access to:
 
 -   **fNIRS (functional Near-Infrared Spectroscopy)**: Raw 24-bit optical data for measuring blood oxygenation (hemodynamics) in the prefrontal cortex.
--   **High-Frequency EEG**: Native support for **256Hz** streaming via batched samples.
+-   **True 256Hz Raw EEG**: Access to the full-resolution signal (research resolution) instead of downsampled or pre-processed averages.
 -   **IMU**: Accelerometer & Gyroscope for head motion tracking.
 
 #### Technical Specifications (Muse S Gen 2)
@@ -603,6 +603,21 @@ except Exception as e:
 | **Accelerometer** | **G-Force (g)** | 1/16384 g / bit | ±2g / ±4g Range |
 | **Gyroscope** | **Degrees/Second (dps)** | ~0.0076 dps / bit | ±250 dps Range (approx) |
 
+
+#### Included Research Examples
+
+We have provided dedicated examples organized by device in the `examples/` folder.
+
+**1. P5.js Emotion Meter**
+A visualization of your cognitive state using data from the Muse S.
+- **Location**: [`examples/Muse S (Athena)/p5-emotion-meter`](examples/Muse%20S%20(Athena)/p5-emotion-meter)
+- **Features**: Real-time Alpha Asymmetry (Mood), Calibration, and smoothing.
+
+**2. Python Visualizer**
+A raw data visualizer using `matplotlib` for research validation.
+- **Location**: [`examples/Muse S (Athena)/python-viz`](examples/Muse%20S%20(Athena)/python-viz)
+- **Use for**: verifying 256Hz signal quality and raw fNIRS values.
+
 #### How to Connect
 
 1.  Put your Muse S headband into pairing mode (lights oscillating).
@@ -611,91 +626,137 @@ except Exception as e:
 4.  **Important**: In the Device Profile dropdown, select **"Muse S (Athena)"**.
 5.  Click **"Scan"**, select your Muse device, and click **"Connect"**.
 
-#### 1. Calibration Logic (Essential for fNIRS)
-Raw optical values mean nothing on their own. You must calculate the **relative change** from a resting state.
+#### 1. Calibration Logic (Essential)
 
-**JavaScript Calibration Function:**
+Different data types require different calibration math.
+
+**A. Optical / fNIRS (Ratio Method)**
+Used for light intensity. We want "Relative Change" (e.g., 105% of baseline).
+*   **Math**: `Current Value / Baseline Average`
+*   **Result**: 1.0 = Neutral, >1.0 = Active
+
+**B. EEG Asymmetry / Scores (Offset Method)**
+Used for indices/scores like Alpha Asymmetry or Balance. We want to "Zero Center" the data.
+*   **Math**: `Current Score - Baseline Average`
+*   **Result**: 0.0 = Neutral, +Positive, -Negative
+
+**JavaScript Example (Universal Calibration):**
 ```javascript
-// Global variables to store our baseline
-let fnirsBaseline = null;
-let fnirsBuffer = [];
+let calibrationBuffer = [];
+let baseline = null;
 
-function calibrateAndGetActivity(rawValue) {
-    // 1. Build Baseline (Wait ~3 seconds / 200 samples)
-    if (fnirsBuffer.length < 200) {
-        fnirsBuffer.push(rawValue);
-        return 0; // Still calibrating...
-    } 
-    
-    // 2. Calculate Average Baseline (Once)
-    if (fnirsBaseline === null) {
-        let sum = fnirsBuffer.reduce((a, b) => a + b, 0);
-        fnirsBaseline = sum / fnirsBuffer.length;
-        console.log("Calibration Complete! Baseline:", fnirsBaseline);
+// Mode: 'ratio' for fNIRS, 'offset' for EEG/Scores
+function calibrate(val, mode = 'ratio') {
+    // 1. Collect Data (First 200 samples)
+    if (calibrationBuffer.length < 200) {
+        calibrationBuffer.push(val);
+        return 0; // Still calibrating
     }
     
-    // 3. Compare Current Value vs Baseline
-    // Simple Ratio: 1.0 = No Change, >1.0 = Increased Oxygen/Blood
-    return rawValue / fnirsBaseline;
+    // 2. Calculate Average (Once)
+    if (baseline === null) {
+        let sum = calibrationBuffer.reduce((a, b) => a + b, 0);
+        baseline = sum / calibrationBuffer.length;
+        console.log("Baseline established:", baseline);
+    }
+    
+    // 3. Apply Calibration
+    if (mode === 'ratio') {
+        // fNIRS: Relative change (1.0 = Neutral)
+        return val / baseline; 
+    } else {
+        // EEG/Mood: Zero-centered (0.0 = Neutral)
+        return val - baseline; 
+    }
 }
 ```
 
-**Python Calibration Function:**
+**Python Example (Universal Calibration):**
 ```python
-baseline_buffer = []
-baseline_val = None
+calibration_buffer = []
+baseline = None
 
-def get_activity(raw_val):
-    global baseline_val
+def calibrate(val, mode='ratio'):
+    global baseline
     
-    # 1. Build Baseline
-    if len(baseline_buffer) < 200:
-        baseline_buffer.append(raw_val)
-        return 0.0
+    # 1. Collect Data (First 200 samples)
+    if len(calibration_buffer) < 200:
+        calibration_buffer.append(val)
+        return 0.0 # Still calibrating
         
-    # 2. Calculate Average
-    if baseline_val is None:
-        baseline_val = sum(baseline_buffer) / len(baseline_buffer)
-        print(f"Calibration Complete: {baseline_val}")
+    # 2. Calculate Average (Once)
+    if baseline is None:
+        baseline = sum(calibration_buffer) / len(calibration_buffer)
+        print(f"Baseline established: {baseline}")
         
-    # 3. Calculate Change (Beer-Lambert Proxy)
-    # Using Log10 is standard for Optical Density
-    import math
-    return -math.log10(raw_val / baseline_val)
+    # 3. Apply Calibration
+    if mode == 'ratio':
+        # fNIRS: Relative change (1.0 = Neutral)
+        return val / baseline
+    else:
+        # EEG/Mood: Zero-centered (0.0 = Neutral)
+        return val - baseline
 ```
 
-#### 2. JavaScript: Simple Example (All Data)
-This example listens to **all** data streams and uses the calibration logic above.
+#### 2. JavaScript: Quick Start (Log All Data)
+The simplest way to check if your Muse S is working.
+
 ```javascript
+const bridge = new SerialBridge();
+
+bridge.onData("device_1", (data) => {
+    // data is a JSON object with 'type' (eeg, ppg, imu) and 'data'
+    console.log(data); 
+});
+```
+
+#### 3. JavaScript: Research Example (with Calibration)
+This example implements the **Science-Grade Calibration** we discussed above to get accurate fNIRS activity.
+```javascript
+// 1. Initialize Bridge
+const bridge = new SerialBridge();
+
+// 2. Define Calibration Helper (Universal)
+let calibrationBuffer = [];
+let baseline = null;
+
+function calibrate(val, mode = 'ratio') {
+    if (calibrationBuffer.length < 200) {
+        calibrationBuffer.push(val);
+        return 0; 
+    }
+    if (baseline === null) {
+        baseline = calibrationBuffer.reduce((a, b) => a + b, 0) / calibrationBuffer.length;
+        console.log("Baseline:", baseline);
+    }
+    return mode === 'ratio' ? val / baseline : val - baseline;
+}
+
+// 3. Listen for Data (Device 1)
 bridge.onData("device_1", (data) => {
     let parsed = typeof data === 'string' ? JSON.parse(data) : data;
 
-    // --- 1. EEG Data (Averaged for Simplicity) ---
+    // --- A. EEG Data ---
     if (parsed.type === 'eeg') {
         const d = parsed.data;
         // Access all 4 channels individually
         console.log(`EEG: TP9:${d.tp9} AF7:${d.af7} AF8:${d.af8} TP10:${d.tp10}`);
     } 
     
-    // --- 2. fNIRS Data (Optical) ---
+    // --- B. fNIRS Data (Optical) ---
     // Check 'ppg' type OR 'eeg' type which often bundles 'ppg'
     if (parsed.type === 'ppg' || (parsed.type === 'eeg' && parsed.ppg)) {
         const d = parsed.type === 'eeg' ? parsed.ppg : parsed.data;
         
-        // Left Sensor (Channels 1-3)
-        // Right Sensor (Channels 4-6)
-        
         // Example: Calibrate & Visualize Left IR (Channel 2)
         if (d && d.ch2) {
-            let activity = calibrateAndGetActivity(d.ch2);
+            // Use 'ratio' mode for optical/fNIRS data
+            let activity = calibrate(d.ch2, 'ratio');
             console.log(`fNIRS Activity: ${activity.toFixed(4)}`);
         }
-        
-        // Log all raw values if needed
-        // console.log("Raw:", d.ch1, d.ch2, d.ch3, d.ch4, d.ch5, d.ch6);
     }
     
-    // --- 3. Motion Data (Shared IMU) ---
+    // --- C. Motion Data (Shared IMU) ---
     else if (parsed.type === 'imu') {
         const a = parsed.data.accel;
         const g = parsed.data.gyro;
@@ -709,6 +770,10 @@ bridge.onData("device_1", (data) => {
 Use this when you need every single sample (e.g., for drawing waveforms or fixing fNIRS timing). This method iterates through the mixed packet to find both EEG batches and interleaved fNIRS samples.
 
 ```javascript
+// 1. Initialize
+const bridge = new SerialBridge();
+
+// 2. Process High-Fidelity Data
 bridge.onData("device_1", (data) => {
     let parsed = typeof data === 'string' ? JSON.parse(data) : data;
 
@@ -720,21 +785,32 @@ bridge.onData("device_1", (data) => {
         parsed.samples.forEach(sample => {
             if (sample.type === 'eeg') {
                 // sample.rawSamples contains the array of 12 high-freq samples
-                // sample.value is just the AVERAGE of this batch (avoid using for 256Hz)
                 if (sample.rawSamples) {
                     const samples = sample.rawSamples[sample.channel]; // Array of 12 floats
                     samples.forEach(microvolts => {
-                        // Draw EVERY point (True 256Hz)
-                        drawWaveformPoint(sample.channel, microvolts);
+                        // Access EVERY sample (True 256Hz)
+                        // Example: Push to a plotting array
+                        // myWaveform[sample.channel].push(microvolts);
+                        
+                        // Warning: this runs 256 times per second!
+                        // console.log("EEG:", microvolts); 
                     });
                 }
             } 
             else if (sample.type === 'ppg' || (sample.type === 'eeg' && sample.ppg)) {
                 // Interleaved fNIRS Update (64Hz)
                 const f = sample.type === 'eeg' ? sample.ppg : sample.data;
-                console.log(`fNIRS [${sample.index}]: L-IR:${f.ch2} R-IR:${f.ch5}`);
+                console.log(`fNIRS Left[${f.ch1},${f.ch2},${f.ch3}] Right[${f.ch4},${f.ch5},${f.ch6}]`);
             }
         });
+
+    }
+
+    // 3. Handle IMU Data (Motion) - Comes as separate packets
+    if (parsed.type === 'imu') {
+        const a = parsed.data.accel;
+        const g = parsed.data.gyro;
+        // console.log("Motion:", a.x, a.y, a.z);
     }
 });
 ```
@@ -743,52 +819,80 @@ bridge.onData("device_1", (data) => {
 Access all data streams with proper physics-based calibration.
 ```python
 import socketio
-import math
+import json
+import time
 
-# [Insert Calibration Function Here]
+# 1. Setup Socket
+sio = socketio.Client()
 
+# 2. Define Calibration Helper (Universal)
+calibration_buffer = []
+baseline = None
+
+def calibrate(val, mode='ratio'):
+    global baseline
+    if len(calibration_buffer) < 200:
+        calibration_buffer.append(val)
+        return 0.0
+    if baseline is None:
+        baseline = sum(calibration_buffer) / len(calibration_buffer)
+        print(f"Baseline established: {baseline}")
+        
+    return val / baseline if mode == 'ratio' else val - baseline
+
+# 3. Handle Data Events
 @sio.on('serial-data')
 def on_message(data):
-    # 'data' comes as {'id': 'device_1', 'data': '...'}
-    # The inner 'data' might be a JSON STRING, so we must parse it.
-    import json
-    
+    # Data comes as {'id': 'device_1', 'data': '...'}
+    # The inner 'data' might be a JSON STRING
     payload = data['data']
     if isinstance(payload, str):
         try:
             payload = json.loads(payload)
         except:
-            return # Ignore non-JSON strings
-            
-    # [A] EEG High-Fidelity (256Hz)
+            return 
+
+    # --- A. EEG High-Fidelity (256Hz) ---
     if payload.get('type') == 'eeg':
         if 'rawSamples' in payload:
-            # Code to process EEG...
-            # raw = payload['rawSamples']
-            pass # Replace with actual processing if needed
+            # rawSamples is a dict of lists: {'tp9': [12 floats], ...}
+            samples = payload['rawSamples']
+            # Example: Process AF7 batch
+            # for val in samples['af7']: process(val)
+            pass 
 
-    # [B] fNIRS / Optical (64Hz)
+    # --- B. fNIRS / Optical (64Hz) ---
     # Check for 'ppg' type OR 'ppg' field inside 'eeg' type
     if payload.get('type') == 'ppg' or (payload.get('type') == 'eeg' and 'ppg' in payload):
         ppg = payload.get('ppg') if payload.get('type') == 'eeg' else payload.get('data')
         
-        # Calculate Activity for left IR channel (channel 2)
+        # Example: Calibrate Left IR (Channel 2)
         if ppg and 'ch2' in ppg:
-            activity = get_activity(ppg['ch2'])
+            activity = calibrate(ppg['ch2'], mode='ratio')
             print(f"fNIRS Activity: {activity:.4f}")
+            
         print(f"Raw Left: {ppg['ch1']}, {ppg['ch2']}, {ppg['ch3']}")
-        print(f"Raw Right: {ppg['ch4']}, {ppg['ch5']}, {ppg['ch6']}")
 
-    # --- 3. IMU (Motion) ---
+    # --- C. IMU (Motion) ---
     elif payload.get('type') == 'imu':
         imu = payload['data']
-        acc = imu['accel']
-        gyro = imu['gyro']
-        print(f"Acc: {acc['x']:.2f}, {acc['y']:.2f}, {acc['z']:.2f}")
-        print(f"Gyro: {gyro['x']:.2f}, {gyro['y']:.2f}, {gyro['z']:.2f}")
+        print(f"Acc: {imu['accel']['x']:.2f}, {imu['accel']['y']:.2f}")
 
-# Connect...
-```}
+@sio.event
+def connect():
+    print("Connected to Serial Bridge!")
+
+@sio.event
+def disconnect():
+    print("Disconnected")
+
+# 4. Run Logic
+if __name__ == '__main__':
+    try:
+        sio.connect('http://localhost:3000')
+        sio.wait() # Keep alive
+    except Exception as e:
+        print(f"Connection failed: {e}")}
 });
 ```
 
@@ -1338,7 +1442,7 @@ let serverPort = 3000; // Change this to your preferred starting port
 - Check the sidebar in the Bridge app for the server URL (e.g., "http://localhost:3001")
 - Update the Socket.IO script URL to match: `<script src="http://localhost:3001/socket.io/socket.io.js"></script>`
 - The `SerialBridge()` constructor will auto-detect the URL from the Socket.IO script
-- Include socket.io client library before arduino-bridge.js
+- Include socket.io client library before serial-bridge.js
 - Check browser console for error messages
 
 **Problem**: No data received

@@ -798,7 +798,7 @@
                     connections[existingId].status = 'connected';
                     connections[existingId].device = device;
                 } else {
-                    // Should not happen in new flow, but safe fallback
+                    // Defensive fallback for non-standard flows
                     const id = getNextAvailableId();
                     connections[id] = {
                         status: 'connected',
@@ -1117,7 +1117,7 @@
         }
 
         // Check if connected - don't allow renaming while connected
-        // For BLE, we allowed disconnecting via UI, so status should be 'disconnected'
+        // Ensure device is disconnected before renaming
         if (connections[oldId] && connections[oldId].status === 'connected') {
             alert('Cannot rename while connected. Disconnect first.');
             return false;
@@ -2022,7 +2022,16 @@
             // Handle object data (e.g. from Muse or Whoop)
             let displayData = data;
             if (typeof data === 'object' && data !== null) {
-                displayData = JSON.stringify(data);
+                // Optimization: Don't stringify massive batches or high-freq IMU (causes lag)
+                if (data.samples && Array.isArray(data.samples)) {
+                    displayData = `[Batch Data] ${data.type} x${data.samples.length} items`;
+                } else if (data.type === 'imu') {
+                    displayData = `[IMU] Accel/Gyro Update`;
+                } else if (data.data && typeof data.data === 'object' && Object.keys(data.data).length > 10) {
+                    displayData = `[Complex Data] ${data.type || 'Object'}`;
+                } else {
+                    displayData = JSON.stringify(data);
+                }
             }
 
             newLine.textContent = '[' + timestamp + '] ' + displayData;

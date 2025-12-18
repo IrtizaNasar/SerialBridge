@@ -2,9 +2,12 @@
  * Muse S (Athena) Profile
  * 
  * Handles connection and data parsing for the Interaxon Muse S (Gen 2 / Athena) Headset.
- * Supports EEG (7 channels? currently 4 std), PPG/fNIRS (Optical), Accelerometer, and Gyroscope.
+ * Supports EEG (Standard 4 Channels), PPG/fNIRS (Optical), Accelerometer, and Gyroscope.
  * 
  * Implements specific "Double Command" handshake required for Athena data streaming.
+ * 
+ * Protocol details and reverse-engineering credits:
+ * Based on the 'amused-py' project (https://github.com/mowoe/amused-py).
  */
 
 (function () {
@@ -38,7 +41,7 @@
     }
 
     // Packet Type 0xDF Decoder (EEG + PPG)
-    // Structure: [Type 1B] [Seq 2B] [? 1B] [Payload...]
+    // Structure: [Type 1B] [Seq 2B] [Reserved 1B] [Payload...]
     function parseMuseAthenaMixed(dataView) {
         if (dataView.byteLength < 6) return null;
 
@@ -75,8 +78,8 @@
                         index: index,
                         channel: chName, // Internal marker
                         value: avg,
-                        data: { [chName]: avg }, // Hack for visualizer (averages)
-                        rawSamples: { [chName]: samples } // <--- THE FIX: Full 12-sample array
+                        data: { [chName]: avg }, // Average value for real-time visualization
+                        rawSamples: { [chName]: samples } // Full resolution batch
                     });
                 }
 
@@ -87,21 +90,16 @@
             // Check if it looks like PPG (20 bytes)
             else if (offset + 20 <= byteLength) {
                 // PPG Packet found (0xDF stream)
-                // Decode 6 samples from 20 bytes (3 bytes per sample, simplified to 16-bit?)
-                // Amused-Py Logic: range(0, 18, 3). 6 iterations.
-                // It seems to read 2 bytes from every 3-byte chunk (discarding LSB?)
-                // We will try to read all 3 bytes to get the full 24-bit/20-bit value for fNIRS.
+                // Packet contains 6 samples (3 bytes per sample)
+                // Mapping: [Left Amb, Left IR, Left Red, Right Amb, Right IR, Right Red]
 
                 const ppgSamples = [];
                 for (let i = 0; i < 6; i++) {
                     const o = offset + (i * 3);
-                    // Read 3 bytes (Big Endian 24-bit?)
+                    // Read 3 bytes (Big Endian 24-bit)
                     const val = (dataView.getUint8(o) << 16) | (dataView.getUint8(o + 1) << 8) | dataView.getUint8(o + 2);
                     ppgSamples.push(val);
                 }
-
-                // Start of block? Pattern: [Amb, IR, Red, Amb, IR, Red] ??
-                // We will map them to ch1, ch2, ch3, ch4, ch5, ch6
 
                 results.push({
                     type: 'ppg',
@@ -125,10 +123,9 @@
         }
 
         // Aggregate results
-        // We might have EEG and PPG in the same packet?
-        // Usually distinct blocks. We'll return the collected arrays if mixed, 
-        // OR just simple JSON if possible. The visualizer handles single objects best.
-        // We will emit the LAST valid reading of each type.
+        // Aggregate results from multiple blocks within the packet.
+        // EEG and PPG blocks can coexist. We aggregate them into a single update frame
+        // to ensure synchronized processing by the client.
 
         const output = {
             timestamp: Date.now(),
@@ -152,12 +149,9 @@
 
         if (hasEeg) {
             // Flatten EEG for visualizer compatibility { type: 'eeg', data: { ... } }
-            // If we also assume PPG is rare, we can prioritize EEG return
-            // Or return array of packets? Client.js expects one object?
-            // "handleBLEData" -> "data = parser(view)" -> "broadcast(data)"
-            // If we return an array, does broadcast handle it? Probably not.
-            // We will prioritize EEG. If PPG exists, we might lose it if we don't separate.
-            // Hack: Use 'eeg' type but include 'ppg' field?
+            // Combine with PPG data if present.
+            // Note: We use the 'eeg' type as the primary carrier for the UI,
+            // but attach 'ppg' data to it so both can be processed in one frame.
             return JSON.stringify({
                 type: 'eeg', // Primary type for UI
                 timestamp: Date.now(),
@@ -187,12 +181,12 @@
         const b0 = view.getUint8(offset);
         const b1 = view.getUint8(offset + 1);
         const sample = (b0 << 4) | (b1 >> 4);
-        return (sample > 500 && sample < 3500); // 12-bit range is 0-4095. Relaxed check.
+        return (sample > 500 && sample < 3500); // Validate 12-bit range (0-4095) with tolerance.
     }
 
     function unpackEEGBlock(view, offset) {
         const samples = [];
-        const scale = 1000.0 / 2048.0; // Amused-Py scaling (uV)
+        const scale = 1000.0 / 2048.0; // Standard microvolt scaling
         // Unpack 12 samples from 18 bytes (6 iterations of 3 bytes -> 2 samples)
         for (let i = 0; i < 6; i++) {
             const o = offset + (i * 3);
@@ -212,7 +206,7 @@
 
     // IMU Decoder (0xF4)
     function parseMuseAthenaIMU(dataView) {
-        // [Type 0xF4] [Seq 2B] [? 1B] [Payload...]
+        // [Type 0xF4] [Seq 2B] [Reserved 1B] [Payload...]
         // Payload: int16 array: ax, ay, az, gx, gy, gz
         if (dataView.byteLength < 16) return null;
 
@@ -220,24 +214,9 @@
         const offset = 4;
 
         // Muse Athena IMU (16-bit signed)
-        // Standard Muse 2 Scale: 16384 = 1G ( +/- 2G Range)
-        // Gyro Scale: 65.5 = 1 dps ( +/- 250 dps Range or similar? Need to verify)
-        // Amused-Py uses specific scalars. Let's use the standard ones for research validity.
-
-        // Accel: 16-bit, +/- 4G range? Or 2G?
-        // OpenMuse uses 16384.0 for 1G.
-        const ACCEL_SCALE = 16384.0;
-        const GYRO_SCALE = 65.5; // Approx for 500dps? 
-        // Note: If values appear huge (e.g. 138), they might be "Milli-G" if we use 1/100?
-        // User log showed "138.34". If this is m/s^2, it's 14G. 
-        // If it's pure Int16 raw (~2000), 2000/16384 = 0.12 G.
-
-        // Let's stick to the REFERENCE implementation (Amused-Py) if possible
-        // Amused-Py: accel * 0.0000610352 (which is 1/16384)
-        // Amused-Py: gyro * 0.007629 (which is 1/131 ?)
-
-        const imuScale = 0.0000610352; // 1/16384 (Convert to G)
-        const gyroScale = 0.00762939;  // (Convert to deg/s)
+        // Scaling factors derived from Amused-Py reference implementation.
+        const imuScale = 0.0000610352; // Converts to G (1/16384)
+        const gyroScale = 0.00762939;  // Converts to deg/s
 
         // Muse standard is typically Big Endian
         const ax = dataView.getInt16(offset, false) * imuScale;

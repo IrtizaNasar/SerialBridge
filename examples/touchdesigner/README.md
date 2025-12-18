@@ -1,6 +1,6 @@
 # TouchDesigner Integration
 
-Drag-and-drop OSC integration for Serial Bridge. Automatically parses data from all connected devices (Heart Rate Monitors, Arduino, Muse 2, etc.) into CHOP channels.
+Drag-and-drop OSC integration for Serial Bridge. Automatically parses data from all connected devices (Heart Rate Monitors, Arduino, Muse 2, Muse S (Athena), etc.) into CHOP channels.
 
 ## Quick Start
 
@@ -77,6 +77,13 @@ The parser creates channels with device ID prefixes:
 - `device_3_accel_x`, `device_3_accel_y`, `device_3_accel_z`
 - `device_3_gyro_x`, `device_3_gyro_y`, `device_3_gyro_z`
 
+### Muse S (Athena)
+- **EEG**: `device_4_eeg_tp9`, `device_4_eeg_af7`, `device_4_eeg_af8`, `device_4_eeg_tp10`
+- **Optical (fNIRS)**: `device_4_ppg_ch1` ... `device_4_ppg_ch6`
+- **IMU**: `device_4_accel_x`, `device_4_accel_y`, `device_4_accel_z` (combined packet)
+- **Gyro**: `device_4_gyro_x`, `device_4_gyro_y`, `device_4_gyro_z`
+> **Note**: Uses advanced batch parsing for persistence and anti-flicker.
+
 **Note:** Device IDs (`device_1`, `device_2`, etc.) come from Serial Bridge connection names.
 
 ## Channel Filter Examples
@@ -114,10 +121,11 @@ The component automatically handles multiple devices:
 - No flickering or channel conflicts
 - All devices update simultaneously
 
-**Example with 3 devices:**
+**Example configuration:**
 - Heart Rate Monitor (device_1): `device_1_bpm`, `device_1_rr_0`
 - Arduino (device_2): `device_2_value`
-- Muse 2 (device_3): `device_3_eeg_tp9`, `device_3_ppg_ch1`, etc.
+- Muse 2 (device_3): `device_3_eeg_tp9`, `device_3_accel_x`
+- Muse S (device_4): `device_4_eeg_tp9`, `device_4_ppg_ch1` (fNIRS), `device_4_accel_x`
 
 ## Troubleshooting
 
