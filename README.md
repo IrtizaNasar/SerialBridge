@@ -23,7 +23,7 @@
 ## What's New in V2.0
 
 - **Bluetooth Low Energy (BLE) Support**: Native support for Arduino Uno R4 WiFi, Nano 33 BLE, and ESP32.
-- **Device Profiles**: Built-in support for complex devices like the **Muse 2** EEG headband and **Bluetooth Heart Rate Monitors** (with more profiles in development).
+- **Device Profiles**: Built-in support for complex devices like the **Muse 2** and **Muse S (Athena)** EEG headbands, plus **Bluetooth Heart Rate Monitors** (Whoop, Polar, etc.) - with more profiles in development.
 - **Session Management**: Save and load your entire workspace configuration.
 - **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
