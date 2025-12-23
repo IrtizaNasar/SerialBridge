@@ -45,6 +45,7 @@
   - [Muse 2 Support](#muse-2-support)
   - [Muse S (Athena) Support](#muse-s-athena-support)
   - [Heart Rate Monitor Support](#heart-rate-monitor-support)
+  - [iPhone (Sensor Bridge App)](#iphone-sensor-bridge-app)
 
 - [OSC Integration (Broadcasting & Receiving)](#osc-integration-broadcasting--receiving)
 - [API Reference](#api-reference)

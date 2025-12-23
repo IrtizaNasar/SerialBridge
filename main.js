@@ -14,10 +14,9 @@ const { app, BrowserWindow, ipcMain, shell, Tray, Menu, screen } = require('elec
 const path = require('path');
 const os = require('os');
 
-// Enable Web Bluetooth on Linux if not already enabled
-if (process.platform === 'linux') {
-    app.commandLine.appendSwitch('enable-features', 'WebBluetooth');
-}
+// Enable Web Bluetooth for all platforms
+app.commandLine.appendSwitch('enable-features', 'WebBluetooth');
+app.commandLine.appendSwitch('enable-experimental-web-platform-features');
 
 const express = require('express');
 const { SerialPort } = require('serialport');

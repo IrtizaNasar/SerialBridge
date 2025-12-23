@@ -1811,8 +1811,10 @@
         if (modal && titleEl && messageEl) {
             titleEl.textContent = title;
             messageEl.innerHTML = message; // Use innerHTML to support <br> and <strong>
-            modal.classList.add('active');
+            modal.classList.add('visible');
+            console.log('✅ Error modal shown');
         } else {
+            console.log('❌ Modal elements not found:', { modal: !!modal, titleEl: !!titleEl, messageEl: !!messageEl });
             // Fallback if modal elements are missing
             alert(title + '\n\n' + message.replace(/<br>/g, '\n').replace(/<\/?[^>]+(>|$)/g, ""));
         }
@@ -1821,7 +1823,7 @@
     window.closeErrorModal = function () {
         const modal = document.getElementById('error-modal');
         if (modal) {
-            modal.classList.remove('active');
+            modal.classList.remove('visible');
         }
     };
 
@@ -2022,16 +2024,7 @@
             // Handle object data (e.g. from Muse or Whoop)
             let displayData = data;
             if (typeof data === 'object' && data !== null) {
-                // Optimization: Don't stringify massive batches or high-freq IMU (causes lag)
-                if (data.samples && Array.isArray(data.samples)) {
-                    displayData = `[Batch Data] ${data.type} x${data.samples.length} items`;
-                } else if (data.type === 'imu') {
-                    displayData = `[IMU] Accel/Gyro Update`;
-                } else if (data.data && typeof data.data === 'object' && Object.keys(data.data).length > 10) {
-                    displayData = `[Complex Data] ${data.type || 'Object'}`;
-                } else {
-                    displayData = JSON.stringify(data);
-                }
+                displayData = JSON.stringify(data);
             }
 
             newLine.textContent = '[' + timestamp + '] ' + displayData;
