@@ -77,6 +77,11 @@ The parser creates channels with device ID prefixes:
 - `device_3_accel_x`, `device_3_accel_y`, `device_3_accel_z`
 - `device_3_gyro_x`, `device_3_gyro_y`, `device_3_gyro_z`
 
+### Muse S (Athena)
+- **EEG**: `device_3_eeg_tp9`, `device_3_eeg_af7`, `device_3_eeg_af8`, `device_3_eeg_tp10`, `device_3_eeg_aux`
+- **PPG / fNIRS**: `device_3_ppg_ch1` ... `device_3_ppg_ch6` (Left: IR/Red/Dark, Right: IR/Red/Dark)
+- **Motion**: `device_3_accel_x/y/z`, `device_3_gyro_x/y/z`
+
 ### iPhone (Sensor Bridge App)
 - **Motion**: `device_4_accel_x/y/z`, `device_4_gyro_x/y/z`, `device_4_mag_x/y/z`
 - **Orientation**: `device_4_pitch`, `device_4_roll`, `device_4_yaw`
@@ -151,6 +156,7 @@ The component automatically handles multiple devices:
 - **Message Format**: `/serial <device_id> <data>`
 - **Data Types**: JSON objects or simple numeric values
 - **Update Rate**: Real-time (every frame)
+- **Auto-Cleanup**: Devices disconnected for >2 seconds are automatically removed from the channel list
 
 ## Support
 

@@ -49,7 +49,6 @@ function showNotch(type, message, icon) {
 
     const targetDisplay = getInternalDisplay();
     if (!targetDisplay) {
-        console.log('[Notch] No internal display found');
         return;
     }
 
@@ -95,7 +94,6 @@ function showNotch(type, message, icon) {
 
     if (notchWindow && !notchWindow.isDestroyed()) {
         const settings = loadSettings();
-        console.log('[Notch] Triggering notch. Sound enabled:', settings.notchSoundsEnabled);
         notchWindow.webContents.send('trigger-notch', {
             type,
             message,
@@ -129,11 +127,8 @@ function showNotch(type, message, icon) {
 function initNotch(ipcMain, shouldEnable = true) {
     // 1. Hardware Check
     if (!hasNotch()) {
-        console.log('[Notch] Hardware not compatible (No notch or not macOS). Feature disabled.');
         return;
     }
-
-    console.log('[Notch] Compatible Mac detected. Initializing...');
 
     // 2. Register IPC Handler
     ipcMain.on('show-notch', (event, { type, message, icon }) => {
@@ -174,7 +169,6 @@ function initNotch(ipcMain, shouldEnable = true) {
 
                 if (!targetDisplay) {
                     if (notchWindow.isVisible()) {
-                        console.log('[Notch] No internal display found (Clamshell mode?). Hiding notch.');
                         notchWindow.hide();
                     }
                     return;
@@ -223,8 +217,6 @@ function initNotch(ipcMain, shouldEnable = true) {
 
 function createNotchWindow() {
     if (notchWindow && !notchWindow.isDestroyed()) return; // Already active
-
-    console.log('[Notch] Enabling notch...');
 
     // Force Dock to be visible immediately
     if (process.platform === 'darwin') {
@@ -316,18 +308,16 @@ const enableNotch = () => {
 };
 
 const disableNotch = () => {
-    console.log('[Notch] Disabling notch...');
     try {
         if (notchWindow) {
             if (!notchWindow.isDestroyed()) {
-                console.log('[Notch] Closing notch window.');
                 notchWindow.close();
             } else {
-                console.log('[Notch] Notch window was already destroyed.');
+                // Notch window was already destroyed
             }
             notchWindow = null;
         } else {
-            console.log('[Notch] No notch window to close.');
+            // No notch window to close
         }
 
         // Remove listeners to free resources

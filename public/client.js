@@ -84,8 +84,6 @@
                 if (type === 'receive') {
                     const toggle = document.getElementById('osc-receive-toggle');
                     if (toggle) {
-                        // DEBUG: Check if we are receiving ANY data
-                        console.log(`Data received from ${type} (${uuid})`, event.target.value);
                         toggle.checked = false;
                         const receiveGroup = document.getElementById('osc-receive-config-group');
                         if (receiveGroup) receiveGroup.style.display = 'none';
@@ -855,8 +853,7 @@
             const parsedData = connection.parser(value, type);
 
             if (parsedData === null) {
-                // Parser returned null (invalid/incomplete packet)
-                console.warn('Parser returned null for data. RAW:', new Uint8Array(value.buffer).slice(0, 10));
+                // Parser returned null (invalid/incomplete packet or kept-alive) - Ignore silently
                 return;
             }
 
@@ -1812,9 +1809,7 @@
             titleEl.textContent = title;
             messageEl.innerHTML = message; // Use innerHTML to support <br> and <strong>
             modal.classList.add('visible');
-            console.log('✅ Error modal shown');
         } else {
-            console.log('❌ Modal elements not found:', { modal: !!modal, titleEl: !!titleEl, messageEl: !!messageEl });
             // Fallback if modal elements are missing
             alert(title + '\n\n' + message.replace(/<br>/g, '\n').replace(/<\/?[^>]+(>|$)/g, ""));
         }
