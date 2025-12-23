@@ -73,7 +73,7 @@ function playPolishedSound(bufferName) {
 }
 
 ipcRenderer.on('trigger-notch', (event, { type, message, icon, soundEnabled }) => {
-    console.log('[Notch Renderer] Received trigger. Sound enabled:', soundEnabled);
+
     // Clear existing timeout
     if (hideTimeout) clearTimeout(hideTimeout);
 

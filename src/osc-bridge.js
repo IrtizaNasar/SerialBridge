@@ -6,6 +6,7 @@ let isEnabled = false;
 let currentHost = '127.0.0.1';
 let currentPort = 3333; // Send Port
 let listeningPort = 3334; // Receive Port
+let isFlatteningEnabled = false; // Flatten JSON to individual addresses
 
 // Reference to active connections (passed from main.js)
 let activeConnections = null;
@@ -32,12 +33,13 @@ function setMainWindow(window) {
  * @param {Object} settings 
  */
 function updateSettings(settings) {
-    console.log('[OSC] updateSettings called with:', settings.oscEnabled);
+
     const newEnabled = settings.oscEnabled || false;
     const newHost = settings.oscHost || '127.0.0.1';
     const newPort = parseInt(settings.oscPort) || 3333;
     const newReceiveEnabled = settings.oscReceiveEnabled || false;
     const newListeningPort = parseInt(settings.oscReceivePort) || 3334;
+    const newFlatteningEnabled = settings.oscFlattening || false;
 
     // If disabled, close existing client/server
     if (!newEnabled) {
@@ -53,15 +55,16 @@ function updateSettings(settings) {
         newPort !== currentPort ||
         newListeningPort !== listeningPort ||
         newReceiveEnabled !== (oscServer !== null) || // Check if receive state changed
+        newFlatteningEnabled !== isFlatteningEnabled ||
         !isEnabled) {
 
         close();
         try {
-            console.log(`[OSC] Initializing Client ${newHost}:${newPort}`);
+
             oscClient = new Client(newHost, newPort);
 
             if (newReceiveEnabled) {
-                console.log(`[OSC] Initializing Server on port ${newListeningPort}`);
+
                 try {
                     oscServer = new Server(newListeningPort, '0.0.0.0', () => {
                         console.log(`[OSC] Server listening on ${newListeningPort}`);
@@ -93,7 +96,9 @@ function updateSettings(settings) {
 
             currentHost = newHost;
             currentPort = newPort;
+            currentPort = newPort;
             listeningPort = newListeningPort;
+            isFlatteningEnabled = newFlatteningEnabled;
             isEnabled = true;
         } catch (err) {
             console.error('[OSC] Failed to initialize client/server:', err);
@@ -123,7 +128,7 @@ function handleMessage(msg) {
         if (activeConnections && activeConnections.has(deviceId)) {
             const conn = activeConnections.get(deviceId);
             if (conn.port && conn.port.isOpen) {
-                console.log(`[OSC-IN] Forwarding to ${deviceId}: ${data}`);
+
                 conn.port.write(String(data) + '\n', (err) => {
                     if (err) console.error(`[OSC-IN] Write error to ${deviceId}:`, err);
                 });
@@ -146,11 +151,14 @@ function send(address, id, data) {
     if (!isEnabled || !oscClient) return;
 
     try {
-        // If data is an object (like Heart Rate or Muse), try to flatten or send as JSON string
-        // For simplicity and compatibility with most OSC parsers, we send:
-        // Address: /serial
-        // Args: [DeviceID, DataString]
+        // Flattened Mode: Recursive Decomposition
+        // Deconstructs the object and sends individual messages for each leaf node
+        if (isFlatteningEnabled && typeof data === 'object' && data !== null) {
+            flattenAndSend(address, id, data);
+            return;
+        }
 
+        // Standard Mode: Serialized JSON
         let payload = data;
         if (typeof data === 'object') {
             payload = JSON.stringify(data);
@@ -161,6 +169,56 @@ function send(address, id, data) {
         });
     } catch (err) {
         console.error('[OSC] Send Exception:', err);
+    }
+}
+
+/**
+ * Recursively flatten object and send individual OSC messages
+ * Address format: /serial/device_1/eeg/tp9
+ */
+function flattenAndSend(baseAddress, id, data, subPath = '') {
+    // Append 'type' discriminators to the path (e.g. /eeg, /ppg)
+    let currentPath = subPath;
+
+    // Root-level handling
+    if (subPath === '') {
+        if (data.type) {
+            currentPath = '/' + data.type;
+        }
+
+        // Bypass metadata wrapper to flatten the primary payload directly
+        if (data.data && typeof data.data === 'object') {
+            flattenAndSend(baseAddress, id, data.data, currentPath);
+            return;
+        }
+    }
+
+    // Iterate over keys
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const value = data[key];
+            const newPath = currentPath + '/' + key; // e.g. /eeg/tp9
+
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                // Recursive call for nested objects
+                flattenAndSend(baseAddress, id, value, newPath);
+            } else {
+                // Leaf Node: Construct and send full address
+                // Pattern: {baseAddress}/{safeId}/{subPath}
+                // Example: /serial/device_1/eeg/tp9
+
+                // Sanitize ID and Key to be safe OSC addresses (alphanumeric)
+                const safeId = String(id).replace(/[^a-zA-Z0-9_]/g, '_');
+
+                // Construct full address
+                // If baseAddress is /serial, result is /serial/device_1/eeg/tp9
+                const fullAddress = `${baseAddress}/${safeId}${newPath}`;
+
+                oscClient.send(fullAddress, value, (err) => {
+                    if (err) console.error('[OSC] Flatten Send Error:', err);
+                });
+            }
+        }
     }
 }
 

@@ -6,7 +6,8 @@ let sensorValue = 0;
 let ledState = false;
 
 function setup() {
-    createCanvas(600, 400);
+    let canvas = createCanvas(600, 400);
+    canvas.parent('canvas-container'); // Attach to HTML container
 
     // Connect to Serial Bridge
     bridge = new SerialBridge();

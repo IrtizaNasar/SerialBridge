@@ -19,7 +19,7 @@
  */
 
 (function () {
-    console.log('Serial Bridge JavaScript loading...');
+
 
     const socket = io();
     const ipcRenderer = window.electron ? window.electron.ipcRenderer : null;
@@ -48,7 +48,7 @@
     let scanningConnectionId = null; // Tracks which card is currently scanning for BLE
 
     // IPC Renderer is exposed via preload.js as window.electron.ipcRenderer
-    console.log('Client: IPC Renderer available:', !!ipcRenderer);
+
 
     document.addEventListener('DOMContentLoaded', async () => {
         // BLE Button Handler
@@ -169,12 +169,12 @@
 
     // Start scanning for this card
     window.scanBLE = async function (id) {
-        console.log('Starting BLE scan for card:', id);
+        // Starting BLE scan
 
         // Prevent rapid re-scanning which can cause Bluetooth API to hang
         const now = Date.now();
         if (now - lastScanTime < SCAN_COOLDOWN) {
-            console.log('Scan cooldown active, please wait...');
+
             return;
         }
         lastScanTime = now;
@@ -201,7 +201,7 @@
         }
 
         try {
-            console.log('Calling navigator.bluetooth.requestDevice...');
+
 
             // Get selected profile to determine service UUID
             const profileSelect = document.getElementById('ble_profile_' + id);
@@ -218,7 +218,7 @@
                 ? profile.service.toLowerCase()
                 : profile.service;
 
-            console.log(`Scanning for profile: ${profile.name} (Service: ${serviceUuid})`);
+            // Scanning for specific services
 
             // Request device - this will trigger the IPC flow
             // We explicitly add the service to optionalServices to avoid "Origin is not allowed" errors
@@ -226,16 +226,16 @@
                 filters: [{ services: [serviceUuid] }],
                 optionalServices: [serviceUuid]
             };
-            console.log('Requesting device with options:', JSON.stringify(requestOptions));
+
 
             const device = await navigator.bluetooth.requestDevice(requestOptions);
 
-            console.log('Device selected:', device.name);
+
             // If we get here, a device was selected via finalizeBLEConnection
             await setupBLEDevice(device, id);
 
         } catch (error) {
-            console.log('Scan cancelled or failed:', error);
+
 
             // Check if it's because no devices were found
             const errorMsg = error.toString();
@@ -510,7 +510,7 @@
     }
 
     async function setupBLEDevice(device, targetId = null) {
-        console.log('Connecting to GATT Server for ' + device.name + '...');
+
 
         // Remove existing listener if any (to avoid duplicates on reconnect)
         device.removeEventListener('gattserverdisconnected', handleDisconnect);
@@ -519,7 +519,7 @@
         try {
             // Ensure clean state
             if (device.gatt.connected) {
-                console.log('Device already connected, disconnecting first...');
+
                 device.gatt.disconnect();
                 // Wait for disconnect to complete
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -540,7 +540,7 @@
             // Get selected profile
             let profileKey;
             if (targetId && connections[targetId] && connections[targetId].profile) {
-                console.log('Using stored profile for reconnection:', connections[targetId].profile);
+
                 profileKey = connections[targetId].profile;
             } else {
                 const profileSelect = document.getElementById('ble_profile_' + targetId);
@@ -553,10 +553,10 @@
                 ? profile.service.toLowerCase()
                 : profile.service;
 
-            console.log(`Connecting using profile: ${profile.name}`);
-            console.log(`Target Service UUID: ${serviceUuid}`);
+            // Connecting using profile
 
-            console.log('Getting Service...');
+
+
             let service;
             let retryCount = 0;
             const MAX_RETRIES = 3;
@@ -565,7 +565,7 @@
                 try {
                     // Check connection state before requesting service
                     if (!device.gatt.connected) {
-                        console.log('GATT disconnected during setup, reconnecting...');
+
                         await device.gatt.connect();
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }
@@ -585,12 +585,12 @@
                 }
             }
 
-            console.log('Getting Characteristics...');
+
 
             if (profile.characteristics) {
                 // Multi-characteristic support (Muse 2)
                 for (const [uuid, type] of Object.entries(profile.characteristics)) {
-                    console.log(`Subscribing to ${type} (${uuid})...`);
+
                     try {
                         const char = await service.getCharacteristic(uuid);
                         await char.startNotifications();
@@ -606,20 +606,20 @@
                 const txChar = await service.getCharacteristic(profile.characteristic);
                 await txChar.startNotifications();
                 txChar.addEventListener('characteristicvaluechanged', (event) => {
-                    // console.log(`Data received from characteristic ${profile.characteristic}`, event.target.value);
+
                     handleBLEData(event, targetId);
                 });
 
                 // Keep-Alive Mechanism for Heart Rate Monitor
                 // Prevents idle timeout disconnections (Whoop, Polar, Garmin, etc.)
                 if (profileKey === 'heart_rate' && targetId && connections[targetId]) {
-                    console.log('Heart Rate Monitor: Starting Keep-Alive interval (90s)...');
+
                     connections[targetId].keepAliveInterval = setInterval(async () => {
                         if (connections[targetId] && connections[targetId].status === 'connected' && txChar) {
                             try {
                                 // Read the value to keep connection active
                                 await txChar.readValue();
-                                // console.log('Heart Rate: Keep-Alive read success');
+
                             } catch (e) {
                                 console.warn('Heart Rate: Keep-Alive failed:', e);
                             }
@@ -643,11 +643,11 @@
 
             // Start Sequence / Handshake Logic
             if (profile.startSequence && Array.isArray(profile.startSequence)) {
-                console.log(`Executing Start Sequence for ${profile.name}...`);
+                // Executing Start Sequence
                 const controlChar = await service.getCharacteristic(profile.controlCharacteristic);
 
                 for (const cmd of profile.startSequence) {
-                    console.log(`Sending Command: ${cmd.description || 'Unknown'}`);
+
 
                     // Convert hex string or array to Uint8Array
                     let commandBytes;
@@ -663,21 +663,21 @@
 
                     // Wait if delay is specified
                     if (cmd.wait) {
-                        console.log(`Waiting ${cmd.wait}ms...`);
+
                         await new Promise(r => setTimeout(r, cmd.wait));
                     }
                 }
-                console.log('Start Sequence Complete!');
+
             } else if (profile.controlCharacteristic) {
                 // Legacy: Special handling for Muse 2 (Hardcoded 'd' command)
                 // Kept strictly to ensure no regression for existing Muse 2 profile
-                console.log('Muse 2 (Legacy): Getting Control Characteristic...');
+                // Muse 2 (Legacy) Control
                 const controlChar = await service.getCharacteristic(profile.controlCharacteristic);
-                console.log('Muse 2 (Legacy): Sending Start Command (d) with length prefix...');
+
                 // Command: <length> <char> <newline>
                 const command = new Uint8Array([0x02, 0x64, 0x0a]);
                 await controlChar.writeValue(command);
-                console.log('Muse 2 (Legacy): Start Command Sent!');
+
             }
 
             // Keep-Alive Mechanism
@@ -685,7 +685,7 @@
             // Check if explicitly disabled (Athena throws GATT errors on read)
             if (profile.enableKeepAlive !== false && (profile.keepAliveCmd || (profile.controlCharacteristic && targetId && connections[targetId]))) {
                 const keepAliveMs = profile.keepAliveInterval || 60000;
-                console.log(`Starting Keep-Alive interval (${keepAliveMs}ms)...`);
+
 
                 // Reuse control char reference if possible, otherwise get it
                 let keepAliveChar;
@@ -831,7 +831,7 @@
                 }
             }
         } catch (error) {
-            // Suppress scary raw UUID error in console
+            // Suppress raw UUID error in console
             if (error.message && error.message.includes('No Services matching UUID')) {
                 console.warn('BLE Connection Error: Service Discovery Failed (Out of Range or Wrong Profile)');
             } else {
@@ -1979,7 +1979,7 @@
                 dataPreview.classList.add('active');
 
                 // Trigger Notch (Success)
-                // We check if this is a Serial connection (BLE handles its own triggers usually, but this function is shared)
+                // Verification for Serial connections (BLE triggers handled independently)
                 // Actually, updateConnectionStatus is primarily for Serial via Socket.IO.
                 // BLE uses updateBLEUIStatus.
                 if (connections[id] && connections[id].type !== 'ble') {
@@ -2610,34 +2610,21 @@
     // ========================================
     // BROADCAST / OSC MODAL
     // ========================================
-    window.openBroadcastModal = async function () {
-        const modal = document.getElementById('broadcast-modal');
-        if (modal) {
-            modal.classList.add('active');
-            // Load current settings
-            if (window.electron && window.electron.ipcRenderer) {
-                const settings = await window.electron.ipcRenderer.invoke('get-settings');
-                updateBroadcastUI(settings);
-            }
-        }
-    };
-
-    window.closeBroadcastModal = function () {
-        const modal = document.getElementById('broadcast-modal');
-        if (modal) {
-            modal.classList.remove('active');
-        }
-    };
-
-    function updateBroadcastUI(settings) {
+    // ========================================
+    // BROADCAST / OSC MODAL
+    // ========================================
+    // Helper function to update UI elements based on settings
+    // Defined globally so it can be called on startup
+    window.updateBroadcastUI = function (settings) {
         const oscToggle = document.getElementById('osc-toggle');
         const oscHost = document.getElementById('osc-host');
         const oscPort = document.getElementById('osc-port');
         const oscReceiveToggle = document.getElementById('osc-receive-toggle');
         const oscReceivePort = document.getElementById('osc-receive-port');
+        const oscFlattenToggle = document.getElementById('osc-flatten-toggle');
         const configGroup = document.getElementById('osc-config-group');
         const receiveConfigGroup = document.getElementById('osc-receive-config-group');
-        const indicator = document.getElementById('osc-status-indicator'); // Added this line to define indicator
+        const indicator = document.getElementById('osc-status-indicator');
 
         if (oscToggle) oscToggle.checked = settings.oscEnabled;
         if (configGroup) configGroup.style.display = settings.oscEnabled ? 'block' : 'none';
@@ -2649,110 +2636,119 @@
         if (receiveConfigGroup) receiveConfigGroup.style.display = settings.oscReceiveEnabled ? 'block' : 'none';
         if (oscReceivePort) oscReceivePort.value = settings.oscReceivePort || 3334;
 
+        if (oscFlattenToggle) oscFlattenToggle.checked = settings.oscFlattening || false;
+
         // Update indicator
         if (indicator) {
             const isActive = settings.oscEnabled || settings.oscReceiveEnabled;
             indicator.style.backgroundColor = isActive ? '#10b981' : '#333';
             indicator.style.boxShadow = isActive ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none';
         }
-    }
+    };
 
-    // Event Listeners for Broadcast Modal
-    try {
-        const oscToggle = document.getElementById('osc-toggle');
-        const oscHost = document.getElementById('osc-host');
-        const oscPort = document.getElementById('osc-port');
-        const oscReceiveToggle = document.getElementById('osc-receive-toggle');
-        const oscReceivePort = document.getElementById('osc-receive-port');
+    window.openBroadcastModal = async function () {
+        const modal = document.getElementById('broadcast-modal');
+        if (modal) {
+            modal.classList.add('active');
 
-        if (oscToggle) {
-            oscToggle.addEventListener('change', async (e) => {
-                const enabled = e.target.checked;
-                console.log('[CLIENT] Toggle OSC clicked. New state:', enabled);
+            // Load current settings
+            const settings = await window.electron.ipcRenderer.invoke('get-settings');
 
-                const configGroup = document.getElementById('osc-config-group');
-                const indicator = document.getElementById('osc-status-indicator');
+            // Update UI with latest settings
+            window.updateBroadcastUI(settings);
 
-                if (configGroup) configGroup.style.display = enabled ? 'block' : 'none';
+            // Note: Individual elements are also updated by updateBroadcastUI, 
+            // so we don't need to manually set them again here unless redundant safety is desired.
+            // The previous code manually set them, but updateBroadcastUI covers it.
+        };
 
-                // Update indicator immediately
-                if (indicator) {
-                    const receiveEnabled = document.getElementById('osc-receive-toggle').checked;
-                    const isActive = enabled || receiveEnabled;
-                    indicator.style.backgroundColor = isActive ? '#10b981' : '#333';
-                    indicator.style.boxShadow = isActive ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none';
-                }
-
-                if (window.electron && window.electron.ipcRenderer) {
-                    await window.electron.ipcRenderer.invoke('update-setting', 'oscEnabled', enabled);
-
-                    // Trigger Notch Notification
-                    if (enabled) {
-                        triggerNotch('success', 'Broadcasting OSC', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
-                    } else {
-                        triggerNotch('disconnect', 'OSC Broadcasting Stopped', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
-                    }
-
-                    // Track Event
-                    window.electron.ipcRenderer.invoke('track-event', 'osc_broadcast_toggled', {
-                        enabled: enabled
-                    });
-                }
-            });
-        }
-
-        if (oscReceiveToggle) {
-            oscReceiveToggle.addEventListener('change', async (e) => {
-                const enabled = e.target.checked;
-                const receiveGroup = document.getElementById('osc-receive-config-group');
-                if (receiveGroup) receiveGroup.style.display = enabled ? 'block' : 'none';
-
-                // Update indicator immediately
-                const indicator = document.getElementById('osc-status-indicator');
-                if (indicator) {
-                    const broadcastEnabled = document.getElementById('osc-toggle').checked;
-                    const isActive = enabled || broadcastEnabled;
-                    indicator.style.backgroundColor = isActive ? '#10b981' : '#333';
-                    indicator.style.boxShadow = isActive ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none';
-                }
-
-                if (window.electron && window.electron.ipcRenderer) {
-                    await window.electron.ipcRenderer.invoke('update-setting', 'oscReceiveEnabled', enabled);
-
-                    // Trigger Notch Notification
-                    if (enabled) {
-                        triggerNotch('success', 'Receiving OSC', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
-                    } else {
-                        triggerNotch('disconnect', 'OSC Receiving Stopped', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`);
-                    }
-
-                    // Track Event
-                    window.electron.ipcRenderer.invoke('track-event', 'osc_receive_toggled', {
-                        enabled: enabled
-                    });
-                }
-            });
-        }
-
-        function saveOSCConfig() {
-            const host = document.getElementById('osc-host').value;
-            const port = parseInt(document.getElementById('osc-port').value);
-            const receivePort = parseInt(document.getElementById('osc-receive-port').value);
-            const receiveEnabled = document.getElementById('osc-receive-toggle').checked;
-
-            if (window.electron && window.electron.ipcRenderer) {
-                window.electron.ipcRenderer.invoke('update-setting', 'oscHost', host);
-                window.electron.ipcRenderer.invoke('update-setting', 'oscPort', port);
-                window.electron.ipcRenderer.invoke('update-setting', 'oscReceivePort', receivePort);
-                window.electron.ipcRenderer.invoke('update-setting', 'oscReceiveEnabled', receiveEnabled);
+        window.closeBroadcastModal = function () {
+            const modal = document.getElementById('broadcast-modal');
+            if (modal) {
+                modal.classList.remove('active');
             }
+        };
+
+        // Event Listeners for Broadcast Modal
+        // Initialize Listeners for Input Fields (Host, Port)
+        try {
+            const oscHost = document.getElementById('osc-host');
+            const oscPort = document.getElementById('osc-port');
+            const oscReceivePort = document.getElementById('osc-receive-port');
+            const oscToggle = document.getElementById('osc-toggle');
+
+            // OSC Main Toggle
+            if (oscToggle) {
+                oscToggle.onchange = async (e) => {
+                    const enabled = e.target.checked;
+                    const configGroup = document.getElementById('osc-config-group');
+                    const indicator = document.getElementById('osc-status-indicator');
+
+                    // Update UI bits directly for instant feedback
+                    if (configGroup) configGroup.style.display = enabled ? 'block' : 'none';
+
+                    if (window.electron && window.electron.ipcRenderer) {
+                        await window.electron.ipcRenderer.invoke('update-setting', 'oscEnabled', enabled);
+                        window.electron.ipcRenderer.invoke('track-event', 'osc_broadcast_toggled', { enabled });
+
+                        // Refresh full UI state to ensure indicator logic runs
+                        const settings = await window.electron.ipcRenderer.invoke('get-settings');
+                        window.updateBroadcastUI(settings);
+                    }
+                };
+            }
+
+            function saveOSCConfig() {
+                const host = document.getElementById('osc-host').value;
+                const port = parseInt(document.getElementById('osc-port').value);
+                const receivePort = parseInt(document.getElementById('osc-receive-port').value);
+
+                if (window.electron && window.electron.ipcRenderer) {
+                    window.electron.ipcRenderer.invoke('update-setting', 'oscHost', host);
+                    window.electron.ipcRenderer.invoke('update-setting', 'oscPort', port);
+                    window.electron.ipcRenderer.invoke('update-setting', 'oscReceivePort', receivePort);
+                }
+            }
+
+            if (oscHost) oscHost.addEventListener('change', saveOSCConfig);
+            if (oscPort) oscPort.addEventListener('change', saveOSCConfig);
+            if (oscReceivePort) oscReceivePort.addEventListener('change', saveOSCConfig);
+
+        } catch (err) {
+            console.error('[CLIENT] Error initializing Broadcast listeners:', err);
+        }
+    };
+
+    // Toggle Functions (Global)
+    window.toggleOscReceiveSetting = async function (element) {
+        const isEnabled = element.checked;
+        const configGroup = document.getElementById('osc-receive-config-group');
+
+        if (isEnabled) {
+            configGroup.style.display = 'block';
+        } else {
+            configGroup.style.display = 'none';
         }
 
-        if (oscHost) oscHost.addEventListener('change', saveOSCConfig);
-        if (oscPort) oscPort.addEventListener('change', saveOSCConfig);
-        if (oscReceivePort) oscReceivePort.addEventListener('change', saveOSCConfig);
-    } catch (err) {
-        console.error('[CLIENT] Error initializing Broadcast listeners:', err);
-    }
+        if (window.electron && window.electron.ipcRenderer) {
+            await window.electron.ipcRenderer.invoke('update-setting', 'oscReceiveEnabled', isEnabled);
 
+            // Notify
+            if (isEnabled) {
+                triggerNotch('success', 'Receiving OSC', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`);
+            } else {
+                triggerNotch('disconnect', 'OSC Listen Stopped', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`);
+            }
+
+            window.electron.ipcRenderer.invoke('track-event', 'osc_receive_toggled', { enabled: isEnabled });
+        }
+    };
+
+    window.toggleOscFlattening = async function (element) {
+        const isEnabled = element.checked;
+        if (window.electron && window.electron.ipcRenderer) {
+            await window.electron.ipcRenderer.invoke('update-setting', 'oscFlattening', isEnabled);
+            window.electron.ipcRenderer.invoke('track-event', 'osc_flatten_toggled', { enabled: isEnabled });
+        }
+    };
 })();

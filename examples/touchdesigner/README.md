@@ -8,7 +8,26 @@ Drag-and-drop OSC integration for Serial Bridge. Automatically parses data from 
 2. **Drag into TouchDesigner**
 3. **Done!** All device data appears as CHOP channels
 
-## Component Overview
+## Important: Standard vs. Flattened Mode
+
+Serial Bridge includes a **"Flatten Data"** toggle. This changes how you should receive data in TouchDesigner.
+
+### Method A: Standard Mode (Default)
+**Use this if:** You are using the default Serial Bridge settings.
+*   **Mechanism:** Sends JSON strings.
+*   **Workflow:** Use the provided **`SerialBridge_TD.tox`**. It contains a Python parser script that decodes the JSON for you.
+
+### Method B: Flattened Mode
+**Use this if:** You enabled "Explode / Flatten Data" in Serial Bridge.
+*   **Mechanism:** Sends individual OSC messages (e.g., `/serial/device_1/heart_rate/bpm`).
+*   **Workflow:** You **do not** need the `.tox` component.
+    1. Create an **OSC In CHOP**.
+    2. Set `Network Port` to `3333`.
+    3. Channels will automatically appear as `serial_device_1_heart_rate_bpm`.
+    4. Use a **Select CHOP** to filter (e.g., `*bpm`).
+
+## Method A Guide: Using SerialBridge_TD.tox
+> **Note:** The following sections apply **only** to **Method A (Standard Mode)** using the provided `.tox` component. If you are using Method B, you can skip to using native CHOPs.
 
 The `SerialBridge_TD.tox` is a **container component**. After dragging it into your project, you'll see a box labeled `SerialBridge_TD`.
 
@@ -21,7 +40,7 @@ The `SerialBridge_TD.tox` is a **container component**. After dragging it into y
 - **select1**: Optional channel filter
 - **OUT**: Final output
 
-## Inside the Container
+### Inside the Container
 
 > **Note:** All the following steps require you to **double-click the component** to go inside first. **To exit the container, press `U`** at any time.
 
@@ -60,7 +79,7 @@ To see what channels are being created:
 1. Click `script1` to see all parsed channels
 2. **Option+Click** `script1` to open channel viewer
 
-## Channel Names
+### Channel Names
 
 The parser creates channels with device ID prefixes:
 
@@ -93,7 +112,7 @@ The parser creates channels with device ID prefixes:
 
 **Note:** Device IDs (`device_1`, `device_2`, etc.) come from Serial Bridge connection names.
 
-## Channel Filter Examples
+### Channel Filter Examples
 
 | Filter | Result |
 |--------|--------|
@@ -110,7 +129,7 @@ The parser creates channels with device ID prefixes:
 - `*_bpm` = All channels ending with `_bpm`
 - `*eeg*` = All channels containing `eeg`
 
-## Using the Output
+### Using the Output
 
 Wire the component output to any CHOP operator:
 
@@ -120,7 +139,7 @@ SerialBridge_TD → Math CHOP (process values)
 SerialBridge_TD → CHOP to TOP (convert to visual)
 ```
 
-## Multi-Device Support
+### Multi-Device Support
 
 The component automatically handles multiple devices:
 
@@ -134,7 +153,7 @@ The component automatically handles multiple devices:
 - Muse 2 (device_3): `device_3_eeg_tp9`, `device_3_ppg_ch1`, etc.
 - iPhone (device_4): `device_4_accel_x`, `device_4_pitch`, `device_4_quat_w`, etc.
 
-## Troubleshooting
+### Troubleshooting
 
 **No channels appearing?**
 1. Check Serial Bridge OSC Broadcasting is enabled (green dot)
@@ -149,7 +168,7 @@ The component automatically handles multiple devices:
 - Copy code from `parser_code.py`
 - Paste into `script1_callbacks1` inside the component
 
-## Technical Details
+### Technical Details
 
 - **OSC Protocol**: UDP on localhost
 - **Default Port**: 3333

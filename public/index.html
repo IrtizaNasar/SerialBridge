@@ -337,6 +337,25 @@ function setup() {
                         <p>Data is sent to address <code>/serial</code> with arguments <code>[DeviceID, Data]</code>.
                         </p>
                     </div>
+
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div class="setting-item">
+                            <div>
+                                <h4 style="font-size: 14px;">Explode / Flatten Data</h4>
+                                <p style="font-size: 12px; opacity: 0.7;">
+                                    Sends individual messages (e.g. <code>/serial/device_1/eeg/tp9</code>) instead of a
+                                    JSON
+                                    string.
+                                    Easier for Ableton/TouchDesigner.
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="osc-flatten-toggle"
+                                    onchange="window.toggleOscFlattening(this)">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- RECEIVE SECTION -->

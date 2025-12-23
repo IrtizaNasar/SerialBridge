@@ -17,6 +17,17 @@ This folder contains examples demonstrating how to use the Serial Bridge with P5
 
 ---
 
+### `/device-examples/`
+
+**Hardware-specific implementations** for advanced sensors.
+
+**Muse S (Athena):**
+*   **Location:** `/device-examples/Muse S (Athena)/`
+*   **Contents:**
+    *   `p5-emotion-meter`: Real-time brainwave visualization and mood tracking.
+
+---
+
 ### `/p5js-sketches/`
 
 **How to use:**
@@ -118,6 +129,16 @@ A utility sketch to test if data is being received correctly.
 - Logs all received data to the browser console
 - Useful for debugging connection issues
 
+#### `/ble-control-p5js/`
+
+A P5.js sketch demonstrating bidirectional control of a Bluetooth Low Energy device.
+
+**Features:**
+- Connects to Serial Bridge
+- Controls LED on Arduino Nano 33 BLE or Uno R4 WiFi
+- Receives sensor data verification
+
+
 ### `/arduino-sketches/`
 
 Example Arduino sketches compatible with the Bridge.
@@ -175,17 +196,6 @@ Example Arduino sketches compatible with the Bridge.
 - Bluetooth Low Energy example for ESP32 boards
 - Implements Nordic UART Service (NUS)
 - Compatible with standard ESP32 dev boards
-
-### `/basic-p5js/`
-
-#### `sketch.js`
-- Basic data visualization (receive only)
-
-#### `sketch-ble-control.js`
-- **Note:** This file is located in the root of `examples/p5js-sketches/` (not in a subfolder)
-- Interactive LED control via Bluetooth (send & receive)
-- Works with both `ble-uno-r4.ino` and `ble-nano33.ino`
-- Press keys 1, 2, Space to control LED
 
 ## 🚀 Quick Start
 

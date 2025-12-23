@@ -33,7 +33,7 @@ const oscBridge = require('./src/osc-bridge');
 const { initialize, trackEvent } = require('@aptabase/electron/main');
 
 // Initialize Aptabase IMMEDIATELY (Before app is ready)
-console.log('Initializing Aptabase with key: A-EU-1148008968');
+// Initializing Aptabase
 initialize('A-EU-9940066759');
 
 let connections = new Map(); // Stores active serial port connections (id -> {port, parser})
@@ -141,7 +141,7 @@ function createServer() {
             parser.on('data', (data) => {
                 const cleanData = data.trim();
                 if (cleanData) {
-                    console.log('[DATA] ' + id + ': ' + cleanData);
+
                     // Broadcast data to all connected web clients via WebSocket
                     io.emit('serial-data', { id, data: cleanData });
 
@@ -222,7 +222,7 @@ function createServer() {
                         console.error('Failed to send to ' + id + ':', err);
                         res.status(500).json({ error: err.message });
                     } else {
-                        console.log('[SENT] ' + id + ': ' + data);
+
                         res.json({ success: true });
                     }
                 });
@@ -344,7 +344,7 @@ function createWindow() {
             menu.append(new MenuItem({ label: 'Paste', role: 'paste' }));
         }
 
-        // Add Inspect Element for debugging (optional, but helpful)
+        // Context menu for Inspect Element
         menu.append(new MenuItem({ type: 'separator' }));
         menu.append(new MenuItem({
             label: 'Inspect Element',
@@ -371,16 +371,9 @@ function createWindow() {
     // Handle Bluetooth device selection
     mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
         event.preventDefault();
-        console.log('Main: select-bluetooth-device triggered. Devices:', deviceList.length);
 
-        // Log device properties
-        deviceList.forEach((device, index) => {
-            console.log(`Device ${index}:`, {
-                deviceName: device.deviceName,
-                deviceId: device.deviceId,
-                allProperties: Object.keys(device)
-            });
-        });
+
+
 
         // Update the callback reference
         // We do NOT cancel the previous one here because this event fires multiple times
@@ -397,7 +390,7 @@ function createWindow() {
 
 // Handle device selection from renderer
 ipcMain.on('bluetooth-device-selected', (event, deviceId) => {
-    console.log('Main: Device selected:', deviceId);
+
     if (bluetoothCallback) {
         bluetoothCallback(deviceId);
         bluetoothCallback = null;
@@ -406,7 +399,7 @@ ipcMain.on('bluetooth-device-selected', (event, deviceId) => {
 
 // Handle cancellation from renderer
 ipcMain.on('bluetooth-device-cancelled', () => {
-    console.log('Main: Device selection cancelled');
+
     if (bluetoothCallback) {
         bluetoothCallback(''); // Empty string cancels the selection
         bluetoothCallback = null;
@@ -415,7 +408,7 @@ ipcMain.on('bluetooth-device-cancelled', () => {
 
 // Handle bluetooth pairing request (for Device Profiles)
 ipcMain.handle('bluetooth-pairing-request', async (event, serviceUuid) => {
-    console.log('Main: Bluetooth pairing request for service:', serviceUuid);
+
 
     try {
         // Trigger the Bluetooth device picker
@@ -484,11 +477,11 @@ ipcMain.handle('update-setting', (event, key, value) => {
 
 
 app.whenReady().then(() => {
-    console.log('[DEBUG] App Starting...');
+
 
     // Log process crashes (GPU, Renderer, etc.)
     app.on('child-process-gone', (event, details) => {
-        console.error('[DEBUG] Child Process Gone:', details.type, details.reason, details.exitCode);
+        // Child Process Gone
     });
 
     createServer();
@@ -496,10 +489,10 @@ app.whenReady().then(() => {
         createWindow();
         if (mainWindow && mainWindow.webContents) {
             mainWindow.webContents.on('render-process-gone', (event, details) => {
-                console.error('[DEBUG] Renderer Process Gone:', details.reason, details.exitCode);
+                // Renderer Process Gone
             });
             mainWindow.webContents.on('crashed', (event) => {
-                console.error('[DEBUG] Renderer Crashed');
+                // Renderer Crashed
             });
         }
     }, 1000);
@@ -508,22 +501,22 @@ app.whenReady().then(() => {
     // Aptabase initialized at top level
 
     const settings = loadSettings();
-    console.log('Analytics Enabled:', settings.analyticsEnabled);
+
 
     // Track App Launch if enabled
     if (settings.analyticsEnabled) {
-        console.log('Tracking app_started event...');
+
         trackEvent('app_started', {
             os: process.platform,
             version: app.getVersion(),
             arch: process.arch
         }).then(() => {
-            console.log('App Started event sent successfully');
+
         }).catch(err => {
             console.error('Failed to send App Started event:', err);
         });
     } else {
-        console.log('Analytics disabled, skipping app_started event.');
+
     }
 
     // Initialize Dynamic Notch (macOS Only)

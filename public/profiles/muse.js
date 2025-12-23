@@ -71,10 +71,12 @@
         const z = dataView.getInt16(6, false) * scale;
 
         return JSON.stringify({
-            type: type,
+            type: 'imu',
             timestamp: Date.now(),
             index: index,
-            data: { x, y, z }
+            data: {
+                [type]: { x, y, z }
+            }
         });
     }
 

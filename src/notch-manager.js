@@ -224,15 +224,12 @@ function createNotchWindow() {
     }
 
     // Create the browser window
-    // ARCHITECTURE NOTE:
-    // This configuration is the result of extensive testing to solve specific macOS behaviors:
-    // 1. type: 'panel' -> Required to float over fullscreen apps (VS Code, etc.) without being hidden.
-    // 2. skipTaskbar: true -> Critical! Decouples the window from the main app's "Space".
-    //    Without this, showing the notch forces macOS to switch back to the Desktop space.
-    // 3. app.dock.show() -> The Counter-Move. 'skipTaskbar: true' on a Panel often hides the Main App's Dock icon.
-    //    We explicitly call app.dock.show() in showNotch() to force the icon to stay visible.
-    // 4. focusable: false -> Ensures the notification never steals keyboard focus.
-    // 5. y + 30 -> Positions the window exactly below the hardware notch (approx 30px height).
+    // Window Configuration Notes:
+    // 1. type: 'panel' - Required to float over fullscreen apps.
+    // 2. skipTaskbar: true - Decouples window from main app space.
+    // 3. focusable: false - Prevents stealing focus.
+    // 4. Position: Placed ~30px below screen top (hardware notch height).
+    // Note: app.dock.show() called later to maintain Dock icon visibility.
     notchWindow = new BrowserWindow({
         width: 160,
         height: 50,
@@ -249,17 +246,16 @@ function createNotchWindow() {
             contextIsolation: false,
         },
         backgroundColor: '#00000000',
-        type: 'panel', // RESTORED: Needed for correct layering (fixes "screenshot but invisible" bug)
+        type: 'panel', // Ensures correct layering over other windows
         focusable: false,
         skipTaskbar: true,
-        hiddenInMissionControl: true, // REQUIRED: Allows floating over fullscreen apps
+        hiddenInMissionControl: true, // Allows floating over fullscreen apps
         fullscreenable: false, // Critical: Prevent window from becoming a space
         enableLargerThanScreen: true, // Allow positioning off-screen
-        title: '' // Explicitly empty title to prevent "serial-bridge" in Dock menu
+        title: '' // Empty title prevents Dock menu entry
     });
 
-    // CRITICAL: Ignore all mouse events PERMANENTLY.
-    // The notch is a passive visual indicator. It should NEVER block clicks.
+    // Pass through all mouse events to windows below
     notchWindow.setIgnoreMouseEvents(true, { forward: true });
 
     notchWindow.loadFile(path.join(__dirname, '../public/notch/notch.html'));
@@ -268,7 +264,7 @@ function createNotchWindow() {
         // Force Dock to stay visible (fix for panel type hiding it)
         if (process.platform === 'darwin') {
             app.dock.show();
-            app.setActivationPolicy('regular'); // CRITICAL: Prevent app from becoming "Accessory"
+            app.setActivationPolicy('regular');
         }
 
         // Configure for fullscreen visibility ONCE
@@ -282,8 +278,7 @@ function createNotchWindow() {
         // Initial Position
         repositionNotch();
 
-        // CRITICAL: Show immediately but off-screen to keep renderer "hot"
-        // This prevents the "first connect lag" by ensuring the window is already painted.
+        // Show immediately but kept inactive/off-screen to warm up renderer
         notchWindow.showInactive();
     });
 }

@@ -48,6 +48,7 @@
   - [iPhone (Sensor Bridge App)](#iphone-sensor-bridge-app)
 
 - [OSC Integration (Broadcasting & Receiving)](#osc-integration-broadcasting--receiving)
+- [OSC Data Addressing (Standard vs Flattened)](#osc-data-addressing-standard-vs-flattened)
 - [API Reference](#api-reference)
 - [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
 - [Session Management](#session-management)
@@ -480,9 +481,101 @@ void loop() {
 }
 ```
 
+## OSC Data Addressing (Standard vs Flattened)
+
+Serial Bridge includes a **"Flatten Data"** toggle to make mapping easier in software like Ableton Live, TouchDesigner, and Max/MSP.
+
+### 1. Standard Mode (Default)
+**Best for:** Python, JavaScript, custom scripts.
+*   **Format:** One message per device update.
+*   **Address:** `/serial`
+*   **Arguments:** `[deviceID, JSON_String]`
+*   **Example:** `/serial` ` ["device_1", "{\"bpm\": 75}"]`
+
+### 2. Flattened Mode ("Explode Data")
+**Best for:** TouchDesigner, Ableton Live (Connection Kit), OSCulator.
+*   **How to Enable:** Go to **OSC Settings** -> Toggle **"Explode / Flatten Data"**.
+*   **Format:** Individual messages for every single data point.
+*   **Address Pattern:** `/serial/<device_id>/<data_path>`
+
+#### Addressing Examples
+
+| Device | Data Point | Flattened Address | Value Type |
+| :--- | :--- | :--- | :--- |
+| **Heart Rate** | BPM | `/serial/device_1/heart_rate/bpm` | Float |
+| **Muse 2/S** | EEG (TP9) | `/serial/device_1/eeg/tp9` | Float |
+| **Muse 2/S** | Accel X | `/serial/device_1/accel/x` | Float |
+| **iPhone** | Pitch | `/serial/device_1/orientation/pitch` | Float |
+| **Arduino** | Value | `/serial/device_1/value` | Float |
+
+> [!TIP]
+> **TouchDesigner Users:** Use an **OSC In CHOP**. The channels will automatically appear as `serial_device_1_heart_rate_bpm` etc. Use a **Select CHOP** with pattern `*bpm` to filter.
+
+> [!TIP]
+> **Ableton Live Users:** Use the **Connection Kit (OSC)**. Map a parameter to `/serial/device_1/heart_rate/bpm` to control effects with your heartbeat!
+
+
+### Common Address Reference
+
+If **"Flatten Data"** is enabled, use these exact address patterns in your target software (TouchDesigner, Ableton, Max).
+
+#### **Muse 2 / Muse S (Athena)**
+Base Address: `/serial/<device_id>/...`
+
+| Metric | Sub-Path | Complete Example Address | Type |
+| :--- | :--- | :--- | :--- |
+| **EEG** | `eeg/tp9` | `/serial/device_1/eeg/tp9` | Float (uV) |
+| | `eeg/af7` | `/serial/device_1/eeg/af7` | Float (uV) |
+| | `eeg/af8` | `/serial/device_1/eeg/af8` | Float (uV) |
+| | `eeg/tp10` | `/serial/device_1/eeg/tp10` | Float (uV) |
+| **PPG** | `ppg/ch1` | `/serial/device_1/ppg/ch1` | Int (Raw) |
+| | `ppg/ch2` | `/serial/device_1/ppg/ch2` | Int (Raw) |
+| **Motion** | `imu/accel/x`| `/serial/device_1/imu/accel/x` | Float (G) |
+| | `imu/gyro/x` | `/serial/device_1/imu/gyro/x` | Float (deg/s) |
+
+
+#### **Heart Rate Monitor**
+Base Address: `/serial/<device_id>/...`
+
+| Metric | Sub-Path | Complete Example Address | Type |
+| :--- | :--- | :--- | :--- |
+| **BPM** | `heart_rate/bpm` | `/serial/device_1/heart_rate/bpm` | Int |
+| **RR Interval**| `heart_rate/rr` | `/serial/device_1/heart_rate/rr` | Int (ms) |
+
+
+
+#### **iPhone (Sensor Bridge App)**
+Base Address: `/serial/<device_id>/...`
+
+| Metric | Sub-Path | Complete Example Address | Type |
+| :--- | :--- | :--- | :--- |
+| **Acceleration**| `accel_x` | `/serial/device_1/accel_x` | Float (G) |
+| | `accel_y` | `/serial/device_1/accel_y` | Float (G) |
+| | `accel_z` | `/serial/device_1/accel_z` | Float (G) |
+| **Gyroscope** | `gyro_x` | `/serial/device_1/gyro_x` | Float (rad/s) |
+| | `gyro_y` | `/serial/device_1/gyro_y` | Float (rad/s) |
+| | `gyro_z` | `/serial/device_1/gyro_z` | Float (rad/s) |
+| **Orientation***| `orientation_pitch`| `/serial/device_1/orientation_pitch`| Float |
+| **Other** | `<json_key>` | `/serial/device_1/<json_key>` | Dynamic |
+
+*> Note: Metric availability depends on the Sensor Bridge app configuration. All JSON keys sent by the app are automatically available as addresses.*
+
+
+#### **Arduino**
+
+Base Address: `/serial/<device_id>/...`
+
+| Metric | Sub-Path | Complete Example Address | Type |
+| :--- | :--- | :--- | :--- |
+| **Single Value** | `value` | `/serial/device_1/value` | Float |
+
 ## Device Profiles
 
+
 Serial Bridge includes built-in profiles for specific hardware devices. These profiles automatically handle connection protocols, data parsing, and formatting, making it effortless to work with complex sensors.
+
+> [!NOTE]
+> **OSC vs. WebSockets:** The code examples below typically use WebSockets (Socket.IO), which **always** receive the full JSON object. If you are using OSC (e.g. for Ableton/TouchDesigner), enabling **"Flatten Data"** will change the address structure. See the [OSC Data Addressing](#osc-data-addressing-standard-vs-flattened) section for details.
 
 ### Muse 2 Support
 
@@ -500,7 +593,7 @@ This allows researchers and developers to build biofeedback applications without
 1. Put your Muse 2 headband into pairing mode (lights oscillating).
 2. In Serial Bridge, click **"+ New Connection"**.
 3. Select **Bluetooth**.
-4. **Important**: In the Device Profile dropdown, select **"Muse"**.
+4. **Important**: In the Device Profile dropdown, select **"Muse 2 Headset"**.
 5. Click **"Scan"**, select your Muse device from the list, and click **"Connect"**.
 
 #### Accessing Data
@@ -523,12 +616,14 @@ bridge.onData("device_1", (data) => {
     } else if (parsed.type === 'ppg') {
         // PPG sensor values
         console.log("PPG:", parsed.data.ch1, parsed.data.ch2, parsed.data.ch3);
-    } else if (parsed.type === 'accelerometer') {
-        // Movement data
-        console.log("Accel:", parsed.data.x, parsed.data.y, parsed.data.z);
-    } else if (parsed.type === 'gyro') {
-        // Rotation data
-        console.log("Gyro:", parsed.data.x, parsed.data.y, parsed.data.z);
+    } else if (parsed.type === 'imu') {
+        // Movement data (Accelerometer & Gyroscope)
+        if (parsed.data.accel) {
+             console.log("Accel:", parsed.data.accel.x, parsed.data.accel.y, parsed.data.accel.z);
+        }
+        if (parsed.data.gyro) {
+             console.log("Gyro:", parsed.data.gyro.x, parsed.data.gyro.y, parsed.data.gyro.z);
+        }
     }
 });
 ```
@@ -566,10 +661,15 @@ def on_message(data):
             ppg = payload['data']
             print(f"[{device_id}] PPG: {ppg['ch1']}, {ppg['ch2']}, {ppg['ch3']}")
             
-        # 3. Accelerometer (type: 'accel')
-        elif payload.get('type') == 'accel':
-            acc = payload['data']
-            print(f"[{device_id}] Accel: X={acc['x']}, Y={acc['y']}, Z={acc['z']}")
+        # 3. IMU (type: 'imu') - Contains Accel & Gyro
+        elif payload.get('type') == 'imu':
+            imu = payload['data']
+            if 'accel' in imu:
+                acc = imu['accel']
+                print(f"[{device_id}] Accel: X={acc['x']}, Y={acc['y']}, Z={acc['z']}")
+            if 'gyro' in imu:
+                gyro = imu['gyro']
+                print(f"[{device_id}] Gyro: X={gyro['x']}, Y={gyro['y']}, Z={gyro['z']}")
 
 try:
     sio.connect('http://localhost:3000')
@@ -608,19 +708,14 @@ except Exception as e:
 | **Gyroscope** | **Degrees/Second (dps)** | ~0.0076 dps / bit | ±250 dps Range (approx) |
 
 
-#### Included Research Examples
+#### Included  Examples
 
-We have provided dedicated examples organized by device in the `examples/` folder.
+We have provided dedicated examples organized by device in the `examples/device-examples/` folder.
 
 **1. P5.js Emotion Meter**
 A visualization of your cognitive state using data from the Muse S.
-- **Location**: [`examples/Muse S (Athena)/p5-emotion-meter`](examples/Muse%20S%20(Athena)/p5-emotion-meter)
+- **Location**: [`examples/device-examples/Muse S (Athena)/p5-emotion-meter`](examples/device-examples/Muse%20S%20(Athena)/p5-emotion-meter)
 - **Features**: Real-time Alpha Asymmetry (Mood), Calibration, and smoothing.
-
-**2. Python Visualizer**
-A raw data visualizer using `matplotlib` for research validation.
-- **Location**: [`examples/Muse S (Athena)/python-viz`](examples/Muse%20S%20(Athena)/python-viz)
-- **Use for**: verifying 256Hz signal quality and raw fNIRS values.
 
 #### How to Connect
 
@@ -1647,14 +1742,15 @@ SerialBridge/
 ├── preload.js              # Electron preload script
 ├── settings-manager.js     # Settings management
 ├── src/
-│   └── notch-manager.js    # macOS Dynamic Notch logic
+│   ├── notch-manager.js    # macOS Dynamic Notch logic
+│   └── osc-bridge.js       # OSC Parsing & Transmission
 ├── public/                 # UI & Client Library
 │   ├── index.html
 │   ├── client.js
 │   ├── serial-bridge.js    # The library P5.js projects use
 │   ├── notch/              # Notch UI assets
 │   └── profiles/           # Device profile definitions
-├── examples/               # P5.js & Arduino examples
+├── examples/               # Usage Examples (P5.js, Arduino, TouchDesigner, Hardware Specific)
 └── assets/                 # Icons & Images
 ```
 
@@ -1744,8 +1840,6 @@ Copyright © 2025 Irtiza Nasar. All rights reserved.
 
 ## Built With
 
-Built with:
-
 - [Electron](https://www.electronjs.org/) - Desktop application framework
 - [Express](https://expressjs.com/) - Web server
 - [Socket.IO](https://socket.io/) - WebSocket communication
@@ -1754,7 +1848,6 @@ Built with:
 - [Web Bluetooth](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API) - BLE Device Support
 - [Aptabase](https://aptabase.com/) - Privacy-first analytics
 
-Designed for use with [P5.js](https://p5js.org/) - a friendly tool for learning to code and make art.
 
 ## Support
 
