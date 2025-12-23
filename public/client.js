@@ -65,7 +65,7 @@
         // Handle BLE Device List from Main Process
         if (ipcRenderer) {
             ipcRenderer.on('bluetooth-device-list', (deviceList) => {
-                console.log('Client: Received bluetooth-device-list', deviceList);
+                // console.log('Client: Received bluetooth-device-list', deviceList);
                 if (scanningConnectionId) {
                     updateBLEDeviceList(scanningConnectionId, deviceList);
                 }
@@ -282,7 +282,7 @@
         // If the lists are the same, don't update (prevents interrupting user selection)
         if (currentOptions.length === newDeviceIds.length &&
             currentOptions.every(id => newDeviceIds.includes(id))) {
-            console.log('Device list unchanged, skipping update');
+            // console.log('Device list unchanged, skipping update');
             return;
         }
 
@@ -410,13 +410,23 @@
                 connectBtn.textContent = 'Connect';
                 connectBtn.disabled = false;
             }
+            let errorMessage = error.message;
+
+            // Make UUID error user-friendly
+            if (errorMessage && errorMessage.includes('No Services matching UUID')) {
+                errorMessage = 'Unable to communicate with the device service.<br>' +
+                    'The device may be out of range, or the wrong <strong>Profile</strong> was selected.';
+            }
+
             showErrorModal('Re-connection Failed',
-                `<strong>Error:</strong> ${error.message}<br><br>` +
+                `${errorMessage}<br><hr style="border-color: rgba(255,255,255,0.1); margin: 15px 0;">` +
                 `<strong>Troubleshooting Tips:</strong><br>` +
+                `• Remove the device and re-add it.<br>` +
+                `• Check if you have the correct Profile selected.<br>` +
                 `• Ensure the device is powered on and charged.<br>` +
                 `• Move the device closer to your computer.<br>` +
                 `• Check if the device is connected to another app.<br>` +
-                `• Try restarting the device.`
+                `• Try "Forget Device" in system settings and restart.`
             );
         }
     };
@@ -563,7 +573,12 @@
                     service = await server.getPrimaryService(serviceUuid);
                     break; // Success
                 } catch (err) {
-                    console.warn(`Attempt ${retryCount + 1} to get service ${serviceUuid} failed:`, err);
+                    // Suppress raw UUID error log
+                    if (err.message && err.message.includes('No Services matching UUID')) {
+                        console.warn(`Attempt ${retryCount + 1}: Service not found (likely out of range). Retrying...`);
+                    } else {
+                        console.warn(`Attempt ${retryCount + 1} to get service ${serviceUuid} failed:`, err);
+                    }
                     retryCount++;
                     if (retryCount === MAX_RETRIES) throw err;
                     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -591,7 +606,7 @@
                 const txChar = await service.getCharacteristic(profile.characteristic);
                 await txChar.startNotifications();
                 txChar.addEventListener('characteristicvaluechanged', (event) => {
-                    console.log(`Data received from characteristic ${profile.characteristic}`, event.target.value);
+                    // console.log(`Data received from characteristic ${profile.characteristic}`, event.target.value);
                     handleBLEData(event, targetId);
                 });
 
@@ -816,7 +831,12 @@
                 }
             }
         } catch (error) {
-            console.error('BLE Connection Error:', error);
+            // Suppress scary raw UUID error in console
+            if (error.message && error.message.includes('No Services matching UUID')) {
+                console.warn('BLE Connection Error: Service Discovery Failed (Out of Range or Wrong Profile)');
+            } else {
+                console.error('BLE Connection Error:', error);
+            }
 
             // Track Analytics: Connection Failed (BLE)
             if (window.electron && window.electron.ipcRenderer) {
@@ -834,13 +854,23 @@
                     connectBtn.textContent = 'Connect';
                     connectBtn.disabled = false;
                 }
+                let errorMessage = error.message;
+
+                // Make UUID error user-friendly
+                if (errorMessage && errorMessage.includes('No Services matching UUID')) {
+                    errorMessage = 'Unable to communicate with the device service.<br>' +
+                        'The device may be out of range, or the wrong <strong>Profile</strong> was selected.';
+                }
+
                 showErrorModal('Connection Failed',
-                    `<strong>Error:</strong> ${error.message}<br><br>` +
+                    `${errorMessage}<br><hr style="border-color: rgba(255,255,255,0.1); margin: 15px 0;">` +
                     `<strong>Troubleshooting Tips:</strong><br>` +
+                    `• Remove the device and re-add it.<br>` +
+                    `• Check if you have the correct Profile selected.<br>` +
                     `• Ensure the device is powered on and charged.<br>` +
                     `• Move the device closer to your computer.<br>` +
                     `• Check if the device is connected to another app.<br>` +
-                    `• Try restarting the device.`
+                    `• Try "Forget Device" in system settings and restart.`
                 );
             }
         }
@@ -1625,7 +1655,7 @@
         const scanBtn = document.getElementById('scan_' + id);
         const connectBtn = document.getElementById('connect_' + id);
 
-        console.log('Elements found:', { select: !!select, scanBtn: !!scanBtn, connectBtn: !!connectBtn });
+        // console.log('Elements found:', { select: !!select, scanBtn: !!scanBtn, connectBtn: !!connectBtn });
 
         if (select) {
             select.innerHTML = '<option value="">Click Scan to find devices...</option>';
@@ -1633,7 +1663,7 @@
         }
 
         if (scanBtn) {
-            console.log('Resetting scan button text from:', scanBtn.textContent, 'to: Scan');
+            // console.log('Resetting scan button text from:', scanBtn.textContent, 'to: Scan');
             scanBtn.textContent = 'Scan';
             scanBtn.disabled = false;
         }
@@ -1669,7 +1699,7 @@
                 data.all.forEach(function (port) {
                     const option = document.createElement('option');
                     option.value = port.path;
-                    // On Windows, manufacturer might be missing or different.
+                    // Manufacturer data is platform-dependent (often missing on Windows).
                     // Show Path (COMx) + Manufacturer + VID/PID if available
                     let label = port.path;
                     if (port.manufacturer) {
