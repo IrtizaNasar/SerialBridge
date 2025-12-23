@@ -410,7 +410,14 @@
                 connectBtn.textContent = 'Connect';
                 connectBtn.disabled = false;
             }
-            alert('Connection failed: ' + error.message);
+            showErrorModal('Re-connection Failed',
+                `<strong>Error:</strong> ${error.message}<br><br>` +
+                `<strong>Troubleshooting Tips:</strong><br>` +
+                `• Ensure the device is powered on and charged.<br>` +
+                `• Move the device closer to your computer.<br>` +
+                `• Check if the device is connected to another app.<br>` +
+                `• Try restarting the device.`
+            );
         }
     };
 
@@ -827,7 +834,14 @@
                     connectBtn.textContent = 'Connect';
                     connectBtn.disabled = false;
                 }
-                alert('Connection failed: ' + error.message);
+                showErrorModal('Connection Failed',
+                    `<strong>Error:</strong> ${error.message}<br><br>` +
+                    `<strong>Troubleshooting Tips:</strong><br>` +
+                    `• Ensure the device is powered on and charged.<br>` +
+                    `• Move the device closer to your computer.<br>` +
+                    `• Check if the device is connected to another app.<br>` +
+                    `• Try restarting the device.`
+                );
             }
         }
     }
@@ -982,11 +996,11 @@
 
             } catch (error) {
                 console.error('Reconnection failed:', error);
-                alert('Reconnection failed: ' + error);
+                showErrorModal('Reconnection Failed', error);
                 updateBLEUIStatus(id, 'disconnected');
             }
         } else {
-            alert('Device information lost. Please remove and add again.');
+            showErrorModal('Device Connection Lost', 'Device information lost. Please remove and add again.');
         }
     };
 
@@ -1095,12 +1109,12 @@
 
         // Validation
         if (!newId) {
-            alert('ID cannot be empty');
+            showErrorModal('Invalid ID', 'ID cannot be empty');
             return false;
         }
 
         if (!/^[a-zA-Z0-9_]+$/.test(newId)) {
-            alert('ID can only contain letters, numbers, and underscores');
+            showErrorModal('Invalid ID', 'ID can only contain letters, numbers, and underscores');
             return false;
         }
 
@@ -1109,14 +1123,14 @@
         }
 
         if (connections.hasOwnProperty(newId)) {
-            alert('ID "' + newId + '" is already in use');
+            showErrorModal('ID Conflict', 'ID "' + newId + '" is already in use');
             return false;
         }
 
         // Check if connected - don't allow renaming while connected
         // Ensure device is disconnected before renaming
         if (connections[oldId] && connections[oldId].status === 'connected') {
-            alert('Cannot rename while connected. Disconnect first.');
+            showErrorModal('Action Failed', 'Cannot rename while connected. Disconnect first.');
             return false;
         }
 
@@ -1703,7 +1717,7 @@
             const selectedBaud = parseInt(baudSelect.value);
 
             if (!selectedPort) {
-                alert('Please select a port first');
+                showErrorModal('Connection Failed', 'Please select a port first');
                 return;
             }
 
@@ -2279,7 +2293,7 @@
 
                     // Validate configuration
                     if (!config.version || !config.connections) {
-                        alert('Invalid session file format');
+                        showErrorModal('Load Failed', 'Invalid session file format');
                         return;
                     }
 
@@ -2448,12 +2462,12 @@
                     }
 
                     console.log('Session loaded successfully');
-                    alert('Session loaded successfully!');
+                    triggerNotch('success', 'Session Loaded', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>');
 
 
                 } catch (error) {
                     console.error('Error loading session:', error);
-                    alert('Error loading session file: ' + error.message);
+                    showErrorModal('Load Failed', 'Error loading session file: ' + error.message);
                 }
             };
 
