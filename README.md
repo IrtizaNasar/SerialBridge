@@ -23,7 +23,7 @@
 ## What's New in V2.0
 
 - **Bluetooth Low Energy (BLE) Support**: Native support for Arduino Uno R4 WiFi, Nano 33 BLE, and ESP32.
-- **Device Profiles**: Built-in support for complex devices like the **Muse 2** and **Muse S (Athena)** EEG headbands, plus **Bluetooth Heart Rate Monitors** (Whoop, Polar, etc.) - with more profiles in development.
+- **Device Profiles**: Built-in support for complex devices like the **Muse 2** and **Muse S (Athena)** EEG headbands, **Bluetooth Heart Rate Monitors** (Whoop, Polar, etc.), and **iPhone (via Sensor Bridge App)** for accessing phone sensors.
 - **Session Management**: Save and load your entire workspace configuration.
 - **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
@@ -479,6 +479,180 @@ void loop() {
 ## Device Profiles
 
 Serial Bridge includes built-in profiles for specific hardware devices. These profiles automatically handle connection protocols, data parsing, and formatting, making it effortless to work with complex sensors.
+
+### iPhone (Sensor Bridge App)
+
+Use your iPhone as a wireless sensor suite with the **Sensor Bridge iOS app**. Access accelerometer, gyroscope, magnetometer, GPS, barometer, and more - all streamed in real-time over Bluetooth.
+
+#### Available Sensors
+- **Motion**: Accelerometer, Gyroscope, Magnetometer
+- **Orientation**: Device Motion (Pitch, Roll, Yaw), Quaternion
+- **Environment**: Barometer (Pressure, Altitude)
+- **Location**: GPS (Latitude, Longitude, Speed, Heading)
+- **Audio**: Microphone Level
+- **Advanced**: Gravity, User Acceleration (motion minus gravity)
+
+#### How to Connect
+
+1. Download the **Sensor Bridge** app from the iOS App Store.
+2. Open the app and tap **"Start Broadcasting"**.
+3. In Serial Bridge desktop app, click **"+ New Connection"**.
+4. Select **Bluetooth**.
+5. **Important**: In the Device Profile dropdown, select **"iPhone (via Sensor Bridge App)"**.
+6. Click **"Scan"**, select your iPhone from the list, and click **"Connect"**.
+
+#### Accessing Data
+
+Data is streamed as JSON objects with sensor values rounded to 3 decimal places for optimal Bluetooth transmission.
+
+**JavaScript Example - Basic Motion:**
+```javascript
+// Connect to Serial Bridge
+bridge = new SerialBridge();
+
+// Listen for data from your iPhone
+bridge.onData("device_1", (data) => {
+    // Parse if string, otherwise use directly
+    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+    // Accelerometer (m/s²)
+    if (parsed.accel_x !== undefined) {
+        console.log("Accel:", parsed.accel_x, parsed.accel_y, parsed.accel_z);
+    }
+
+    // Gyroscope (rad/s)
+    if (parsed.gyro_x !== undefined) {
+        console.log("Gyro:", parsed.gyro_x, parsed.gyro_y, parsed.gyro_z);
+    }
+
+    // Device Orientation
+    if (parsed.pitch !== undefined) {
+        console.log("Orientation:", parsed.pitch, parsed.roll, parsed.yaw);
+    }
+});
+```
+
+**P5.js Example - Tilt-Controlled Circle:**
+```javascript
+let bridge;
+let tiltX = 0;
+let tiltY = 0;
+
+function setup() {
+    createCanvas(400, 400);
+    bridge = new SerialBridge();
+
+    bridge.onData("device_1", (data) => {
+        let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+        
+        // Use device orientation to control position
+        if (parsed.roll !== undefined) {
+            tiltX = map(parsed.roll, -PI, PI, 0, width);
+        }
+        if (parsed.pitch !== undefined) {
+            tiltY = map(parsed.pitch, -PI, PI, 0, height);
+        }
+    });
+}
+
+function draw() {
+    background(220);
+    fill(100, 150, 255);
+    circle(tiltX, tiltY, 50);
+}
+```
+
+**Advanced Example - Quaternion for 3D Rotation:**
+```javascript
+// Enable Quaternion in the iOS app settings for gimbal-lock-free rotation
+bridge.onData("device_1", (data) => {
+    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    
+    if (parsed.quat_x !== undefined) {
+        // Quaternion components (x, y, z, w)
+        let quat = {
+            x: parsed.quat_x,
+            y: parsed.quat_y,
+            z: parsed.quat_z,
+            w: parsed.quat_w
+        };
+        
+        // Use with Three.js or other 3D libraries
+        // object3D.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+    }
+});
+```
+
+**GPS Example:**
+```javascript
+bridge.onData("device_1", (data) => {
+    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    
+    if (parsed.latitude !== undefined) {
+        console.log(`Location: ${parsed.latitude}, ${parsed.longitude}`);
+        console.log(`Speed: ${parsed.speed} m/s`);
+        console.log(`Heading: ${parsed.heading}°`);
+    }
+});
+```
+
+#### Python Integration
+
+```python
+import socketio
+import json
+
+sio = socketio.Client()
+
+@sio.on('serial-data')
+def on_message(data):
+    device_id = data['id']
+    payload = data['data']
+    
+    # Parse JSON if it's a string
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    
+    if isinstance(payload, dict):
+        # Accelerometer
+        if 'accel_x' in payload:
+            print(f"Accel: X={payload['accel_x']}, Y={payload['accel_y']}, Z={payload['accel_z']}")
+        
+        # GPS Location
+        if 'latitude' in payload:
+            print(f"GPS: {payload['latitude']}, {payload['longitude']}")
+        
+        # Barometer
+        if 'pressure' in payload:
+            print(f"Pressure: {payload['pressure']} hPa, Altitude: {payload['altitude']} m")
+
+try:
+    sio.connect('http://localhost:3000')
+    sio.wait()
+except Exception as e:
+    print(f"Connection failed: {e}")
+```
+
+#### Available Data Fields
+
+| Field | Description | Unit | Example |
+|-------|-------------|------|----------|
+| `type` | Always `"phone_sensors"` | - | `"phone_sensors"` |
+| `accel_x`, `accel_y`, `accel_z` | Accelerometer | m/s² | `-0.194` |
+| `gyro_x`, `gyro_y`, `gyro_z` | Gyroscope | rad/s | `0.011` |
+| `mag_x`, `mag_y`, `mag_z` | Magnetometer | µT | `483.867` |
+| `pitch`, `roll`, `yaw` | Device Orientation | radians | `0.659` |
+| `quat_x`, `quat_y`, `quat_z`, `quat_w` | Quaternion | - | `0.935` |
+| `pressure` | Barometric Pressure | hPa | `1012.449` |
+| `altitude` | Altitude | meters | `-0.161` |
+| `latitude`, `longitude` | GPS Coordinates | degrees | `51.472`, `-0.087` |
+| `speed` | GPS Speed | m/s | `0.000` |
+| `heading` | GPS Heading | degrees | `0.000` |
+| `audio_level` | Microphone Level | 0-1 | `0.002` |
+| `gravity_x`, `gravity_y`, `gravity_z` | Gravity Vector | m/s² | `-0.196` |
+| `user_accel_x`, `user_accel_y`, `user_accel_z` | User Acceleration (minus gravity) | m/s² | `0.002` |
+
+> **Note**: Not all fields are present in every packet. Fields are only included when their corresponding sensor is enabled in the iOS app settings.
 
 ### Muse 2 Support
 
