@@ -17,7 +17,7 @@ class SerialBridge {
     constructor(serverUrl) {
         // Auto-detect server URL if not provided
         if (!serverUrl) {
-            // Try to detect from the socket.io script tag
+            // Attempt auto-detection from the socket.io script tag
             const socketScript = document.querySelector('script[src*="socket.io"]');
             if (socketScript) {
                 const src = socketScript.getAttribute('src');
