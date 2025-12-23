@@ -15,8 +15,8 @@
     // Based on Amused-Py's muse_realtime_decoder.py
     function parseMuseAthenaDispatcher(dataView, type, characteristic) {
         // Athena sends Mixed packets on the Notification Handle (uuid ending in '0013')
-        // We observe headers like 0xED, 0xE7, 0xDD, 0xDF, etc.
-        // We will accept ANYTHING from the EEG/Mixed characteristic as a Mixed packet.
+        // Observed headers include 0xED, 0xE7, 0xDD, 0xDF, etc.
+        // All data from the EEG/Mixed characteristic is treated as a Mixed packet.
 
         // Characteristic Check: ends with '0013' (EEG/Mixed)
         if (characteristic && characteristic.includes('0013')) {
@@ -28,7 +28,7 @@
 
         // Fallback checks
         if ((packetType & 0xF0) === 0xD0 || (packetType & 0xF0) === 0xE0) {
-            // 0xDF, 0xDD, 0xED, 0xE7... all seem to be Mixed variants
+            // Variants such as 0xDF, 0xDD, 0xED, 0xE7 are processed as Mixed packets
             return parseMuseAthenaMixed(dataView);
         }
 
@@ -54,13 +54,13 @@
 
         // Channel Map for Athena (7 Channels)
         // Amused-Py: ['TP9', 'AF7', 'AF8', 'TP10', 'FPz', 'AUX_R', 'AUX_L']
-        // We only map the first 4 to standard Muse channels for now.
+        // Mapping the first 4 channels to standard Muse channels.
         const channelMap = ['tp9', 'af7', 'af8', 'tp10', 'aux_left', 'aux_right', 'fpz'];
         let channelIndex = 0;
 
         while (offset < byteLength) {
-            // Logic from muse_realtime_decoder.py:
-            // Check if it looks like EEG (18 bytes)
+            // Logic derived from muse_realtime_decoder.py:
+            // Verify EEG packet structure (18 bytes)
             if (offset + 18 <= byteLength && looksLikeEEG(dataView, offset)) {
                 const samples = unpackEEGBlock(dataView, offset);
 
@@ -68,8 +68,8 @@
                 if (channelIndex < channelMap.length) {
                     const chName = channelMap[channelIndex];
 
-                    // We have 12 samples for this channel.
-                    // For visualization, we just take the average or last one.
+                    // Channel contains 12 samples.
+                    // Visualization uses the average value.
                     const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
 
                     results.push({
@@ -86,8 +86,7 @@
                 channelIndex = (channelIndex + 1) % channelMap.length;
                 offset += 18;
             }
-            // Check if it looks like PPG (20 bytes)
-            // Check if it looks like PPG (20 bytes)
+            // Verify PPG packet structure (20 bytes)
             else if (offset + 20 <= byteLength) {
                 // PPG Packet found (0xDF stream)
                 // Packet contains 6 samples (3 bytes per sample)
