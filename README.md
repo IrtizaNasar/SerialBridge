@@ -27,7 +27,7 @@
 - **Session Management**: Save and load your entire workspace configuration.
 - **Data Smoothing API**: Built-in `smooth()`, `stable()`, and `kalman()` filters.
 - **Improved UI**: Drag-and-drop reordering, editable connection IDs, and real-time connection filtering.
-- **Smart Error Handling**: Intelligent detection of "Port Busy" states (USB) with actionable troubleshooting steps.
+- **Smart Error Handling**: Intelligent detection of connection errors (USB & **Bluetooth**) with clear, actionable troubleshooting steps.
 - **OSC Integration**: Bidirectional OSC support. Stream sensor data to **TouchDesigner, Max/MSP, Python**, and control your devices remotely.
 - **Dynamic Notch Notifications (macOS Only)**: Native-style notifications with **sound effects** that integrate with your MacBook's notch for connection status updates.
 
@@ -76,6 +76,9 @@
 - **Device Profiles**: Built-in support for complex sensors like Muse 2
 - **Editable Connection IDs**: Customize connection identifiers for better project organization
 - **Framework Agnostic**: Works with **P5.js, Three.js, React, Vue**, or vanilla HTML/JS
+- **OSC Integration**: Bidirectional support for TouchDesigner, Max/MSP, and Python
+- **Smart Error Handling**: Clear, actionable feedback for USB and Bluetooth connection issues
+- **Dynamic Notch**: Native macOS notifications with sound effects
 
   ![Serial-Bridge](https://github.com/user-attachments/assets/371df7c8-a4e4-421f-90e5-00276cf921d6)
 
@@ -845,7 +848,7 @@ def calibrate(val, mode='ratio'):
 @sio.on('serial-data')
 def on_message(data):
     # Data comes as {'id': 'device_1', 'data': '...'}
-    # The inner 'data' might be a JSON STRING
+    # Ensure payload is parsed if received as a JSON string
     payload = data['data']
     if isinstance(payload, str):
         try:
@@ -1608,6 +1611,16 @@ let serverPort = 3000; // Change this to your preferred starting port
 - Ensure baud rates match between Arduino and Bridge (default: 9600)
 - Use `Serial.println()` not `Serial.print()` in Arduino sketches
 - Verify data is sent as simple text or numbers
+
+### Bluetooth Issues
+
+**Problem**: Bluetooth Connection Failed / "No Services matching UUID"
+
+- **Golden Rule:** **Remove the device** from your computer's Bluetooth settings and **re-add it**. This solves 90% of connection issues.
+- Check if you have the correct **Profile** selected for your device.
+- Ensure the device is powered on and fully charged.
+- Move the device closer to your computer to rule out range issues.
+- Try "Forget Device" in system settings and restart your computer.
 
 ### P5.js Integration Issues
 
