@@ -214,6 +214,7 @@ function createServer() {
     expressApp.post('/api/send', (req, res) => {
         const { id, data } = req.body;
 
+        // Check if this is a serial port connection
         if (connections.has(id)) {
             const connection = connections.get(id);
             if (connection.port && connection.port.isOpen) {
@@ -227,10 +228,16 @@ function createServer() {
                     }
                 });
             } else {
-                res.status(400).json({ error: 'Arduino not connected' });
+                res.status(400).json({ error: 'Device not connected' });
             }
         } else {
-            res.status(400).json({ error: 'Arduino connection not found' });
+            // Assume it's a BLE connection - forward to renderer
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('ble-write-request', { id, data });
+                res.json({ success: true });
+            } else {
+                res.status(400).json({ error: 'Device connection not found' });
+            }
         }
     });
 

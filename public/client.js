@@ -101,6 +101,45 @@
             });
         }
 
+        // Handle BLE Write Requests from Main Process
+        if (ipcRenderer) {
+            ipcRenderer.on('ble-write-request', async ({ id, data }) => {
+                console.log(`[BLE Write] Request for ${id}:`, data);
+                
+                const conn = connections[id];
+                if (!conn || conn.type !== 'ble') {
+                    console.warn(`[BLE Write] Connection ${id} not found or not BLE`);
+                    return;
+                }
+
+                if (!conn.device || !conn.device.gatt || !conn.device.gatt.connected) {
+                    console.warn(`[BLE Write] Device ${id} not connected`);
+                    return;
+                }
+
+                try {
+                    const profileKey = conn.profile || 'generic_uart';
+                    const profile = DEVICE_PROFILES[profileKey];
+                    
+                    if (!profile || !profile.txCharacteristic) {
+                        console.error(`[BLE Write] Profile ${profileKey} has no TX characteristic`);
+                        return;
+                    }
+
+                    const service = await conn.device.gatt.getPrimaryService(profile.service);
+                    const txChar = await service.getCharacteristic(profile.txCharacteristic);
+
+                    const encoder = new TextEncoder();
+                    const dataBytes = encoder.encode(data + '\n');
+                    await txChar.writeValue(dataBytes);
+
+                    console.log(`[BLE Write] Success for ${id}`);
+                } catch (error) {
+                    console.error(`[BLE Write] Failed for ${id}:`, error);
+                }
+            });
+        }
+
         // Prevent default context menu, except in code snippets (for copying)
         document.addEventListener('contextmenu', event => {
             if (!event.target.closest('.code-snippet-wrapper')) {

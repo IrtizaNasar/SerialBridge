@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('electron', {
             }
         },
         on: (channel, func) => {
-            let validChannels = ['bluetooth-device-list', 'settings-updated', 'osc-error'];
+            let validChannels = ['bluetooth-device-list', 'settings-updated', 'osc-error', 'ble-write-request'];
             if (validChannels.includes(channel)) {
                 // Deliberately strip event as it includes `sender` 
                 ipcRenderer.on(channel, (event, ...args) => func(...args));

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BLE Write Test</title>
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <script src="http://localhost:3000/serial-bridge.js"></script>
+</head>
+<body>
+    <h1>BLE Write Test</h1>
+    <button id="testBtn">Send Test Command</button>
+    <button id="ledOn">LED ON (class_1)</button>
+    <button id="ledOff">LED OFF (class_0)</button>
+    <div id="status"></div>
+
+    <script>
+        const bridge = new SerialBridge();
+        const status = document.getElementById('status');
+
+        document.getElementById('testBtn').onclick = async () => {
+            status.textContent = 'Sending test...';
+            try {
+                await bridge.send('device_1', 'test');
+                status.textContent = 'Test sent!';
+            } catch (e) {
+                status.textContent = 'Error: ' + e.message;
+            }
+        };
+
+        document.getElementById('ledOn').onclick = async () => {
+            status.textContent = 'Turning LED ON...';
+            try {
+                await bridge.send('device_1', JSON.stringify({"label":"class_1"}));
+                status.textContent = 'LED ON command sent!';
+            } catch (e) {
+                status.textContent = 'Error: ' + e.message;
+            }
+        };
+
+        document.getElementById('ledOff').onclick = async () => {
+            status.textContent = 'Turning LED OFF...';
+            try {
+                await bridge.send('device_1', JSON.stringify({"label":"class_0"}));
+                status.textContent = 'LED OFF command sent!';
+            } catch (e) {
+                status.textContent = 'Error: ' + e.message;
+            }
+        };
+    </script>
+</body>
+</html>

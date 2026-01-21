@@ -19,8 +19,9 @@
     window.registerProfile('generic_uart', {
         name: 'Generic UART (Arduino/ESP32)',
         service: UART_SERVICE_UUID,
-        characteristic: UART_TX_CHAR_UUID,
-        writeCharacteristic: UART_RX_CHAR_UUID,
+        characteristic: UART_TX_CHAR_UUID,  // RX from device (read)
+        writeCharacteristic: UART_RX_CHAR_UUID,  // Legacy name
+        txCharacteristic: UART_RX_CHAR_UUID,  // TX to device (write)
         parser: parseGenericUART
     });
 })();
