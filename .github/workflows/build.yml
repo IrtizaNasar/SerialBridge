@@ -62,11 +62,21 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         shell: bash
         run: |
-          npm run build
+          # Build artifacts (publish never)
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            npx electron-builder --publish always --arm64
+            npx electron-builder --publish never --arm64
           elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
-            npx electron-builder --publish always --x64
+            npx electron-builder --publish never --x64
           else
-            npx electron-builder --publish always
+            npx electron-builder --publish never
           fi
+
+          # Manually upload artifacts (clobber to fix race conditions)
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Processing release for tag: $TAG_NAME"
+          
+          # Ensure release exists (ignoring error if it does)
+          gh release create $TAG_NAME --title "$TAG_NAME" --notes "Automated release" || true
+          
+          # Upload all relevant artifacts
+          find dist -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.yml" -o -name "*.blockmap" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" \) -print0 | xargs -0 -I {} gh release upload $TAG_NAME "{}" --clobber
