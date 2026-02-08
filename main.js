@@ -10,9 +10,16 @@
  * - Handling Bluetooth device selection
  */
 
-const { app, BrowserWindow, ipcMain, shell, Tray, Menu, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, screen, dialog } = require('electron');
 const path = require('path');
 const os = require('os');
+const { autoUpdater } = require('electron-updater');
+const log = require('electron-log');
+
+// Configure logging
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
+log.info('App starting...');
 
 // Enable Web Bluetooth for all platforms
 app.commandLine.appendSwitch('enable-features', 'WebBluetooth');
@@ -65,6 +72,19 @@ function createServer() {
 
     // Serve static files from the public directory (HTML, CSS, JS, client library)
     expressApp.use(express.static(path.join(__dirname, 'public')));
+
+    /**
+     * API Route: GET /api/health
+     * Used by ML Bridge and other apps to verify this is indeed Serial Bridge
+     */
+    expressApp.get('/api/health', (req, res) => {
+        res.json({
+            app: 'serial-bridge',
+            version: app.getVersion(),
+            port: serverPort,
+            status: 'running'
+        });
+    });
 
     /**
      * API Route: GET /api/ports
@@ -294,6 +314,10 @@ function createServer() {
                 serverPort = port;
                 console.log(`[SERVER] Serial Bridge running on http://localhost:${serverPort}`);
                 console.log('[SERVER] WebSocket server ready for P5.js connections');
+
+                // ONLY create the window once the server is actually listening
+                // This prevents loading the wrong port or a race condition
+                createWindow();
             })
             .on('error', (err) => {
                 if (err.code === 'EADDRINUSE' && maxAttempts > 1) {
@@ -485,6 +509,24 @@ ipcMain.handle('update-setting', (event, key, value) => {
 
 app.whenReady().then(() => {
 
+    // Check for updates
+    if (app.isPackaged) {
+        log.info('Checking for updates...');
+        autoUpdater.checkForUpdatesAndNotify();
+    }
+
+    autoUpdater.on('update-downloaded', (info) => {
+        log.info('Update downloaded');
+        dialog.showMessageBox({
+            type: 'info',
+            title: 'Update Ready',
+            message: `Version ${info.version} is ready. Restart now to apply?`,
+            buttons: ['Restart', 'Later']
+        }).then((returnValue) => {
+            if (returnValue.response === 0) autoUpdater.quitAndInstall();
+        });
+    });
+
 
     // Log process crashes (GPU, Renderer, etc.)
     app.on('child-process-gone', (event, details) => {
@@ -492,17 +534,8 @@ app.whenReady().then(() => {
     });
 
     createServer();
-    setTimeout(() => {
-        createWindow();
-        if (mainWindow && mainWindow.webContents) {
-            mainWindow.webContents.on('render-process-gone', (event, details) => {
-                // Renderer Process Gone
-            });
-            mainWindow.webContents.on('crashed', (event) => {
-                // Renderer Crashed
-            });
-        }
-    }, 1000);
+    // Server 'listening' event will trigger createWindow() once port is confirmed
+
 
 
     // Aptabase initialized at top level

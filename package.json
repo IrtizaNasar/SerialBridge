@@ -25,6 +25,8 @@
   "dependencies": {
     "@aptabase/electron": "^0.3.1",
     "@serialport/parser-readline": "^12.0.0",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.7.3",
     "express": "^4.18.2",
     "node-osc": "^11.1.1",
     "serialport": "^12.0.0",
@@ -32,12 +34,14 @@
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
+    "dotenv": "^16.4.1",
     "electron": "^27.0.0",
     "electron-builder": "^24.6.4"
   },
   "build": {
     "appId": "com.irtizanasar.serial-bridge",
     "productName": "Serial Bridge",
+    "afterSign": "scripts/notarize.js",
     "directories": {
       "output": "dist"
     },
@@ -55,20 +59,22 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "public/assets/images/logo.png",
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": false,
       "target": [
         {
-          "target": "default",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
+          "target": "dmg"
+        },
+        {
+          "target": "zip"
         }
       ],
       "extendInfo": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to Arduino and Muse devices."
-      },
-      "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist"
+      }
     },
     "win": {
       "target": "nsis",
@@ -82,6 +88,12 @@
       ],
       "category": "Development",
       "maintainer": "Irtiza Nasar <irtizanasar@gmail.com>"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "IrtizaNasar",
+      "repo": "SerialBridge",
+      "releaseType": "release"
     }
   }
 }

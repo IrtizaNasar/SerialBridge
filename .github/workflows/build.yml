@@ -1,9 +1,13 @@
-name: SerialBridge v2 Pre-Release Build
+name: Build and Release
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - 'release/v2.0'
+      - main
+      - 'release/v*'
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -14,7 +18,7 @@ jobs:
     
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [macos-latest, macos-15-intel, windows-latest, ubuntu-latest]
 
     steps:
       - name: Check out Git repository
@@ -29,8 +33,39 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build and Publish
+      # Linux-specific setup for Electron
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphicsmagick libgtk-3-dev libnss3 libasound2-dev libgbm-dev
+
+      - name: Build (Draft / Access Check)
+        if: startsWith(github.ref, 'refs/tags/') != true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: |
-          npm run build -- --publish always
+          npm run build
+          npx electron-builder --publish never
+
+      - name: Build & Release (Tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          npm run build
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            npx electron-builder --publish always --arm64
+          elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
+            npx electron-builder --publish always --x64
+          else
+            npx electron-builder --publish always
+          fi
