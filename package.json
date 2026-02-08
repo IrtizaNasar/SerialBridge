@@ -41,6 +41,7 @@
   "build": {
     "appId": "com.irtizanasar.serial-bridge",
     "productName": "Serial Bridge",
+    "artifactName": "Serial-Bridge-${version}-${arch}.${ext}",
     "afterSign": "scripts/notarize.js",
     "directories": {
       "output": "dist"
