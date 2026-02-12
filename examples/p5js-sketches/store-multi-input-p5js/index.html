@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Serial Bridge - P5.js Example</title>
+
+    <!-- P5.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
+
+    <!-- Socket.IO Client (from the Serial Bridge server) -->
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+
+    <!-- Serial Bridge Client Library -->
+    <script src="http://localhost:3000/serial-bridge.js"></script>
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+          sans-serif;
+        background: #0a0a0a;
+        color: #fff;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 10px;
+      }
+
+      .info {
+        text-align: center;
+        color: #888;
+        margin-bottom: 30px;
+      }
+
+      #canvas-container {
+        display: flex;
+        justify-content: center;
+        margin: 20px 0;
+      }
+
+      .instructions {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+      }
+
+      .instructions h3 {
+        margin-top: 0;
+      }
+
+      .instructions ul {
+        line-height: 1.8;
+      }
+
+      code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: "Monaco", "Courier New", monospace;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>🔌 Serial Bridge - P5.js Store Multi Inputs as JSON Example</h1>
+      <p class="info">Make sure the Serial Bridge app is running!</p>
+
+      <div id="canvas-container"></div>
+
+      <div class="instructions">
+        <h3>What this example does:</h3>
+        <ul>
+          <li>
+            Connects to the Serial Bridge at <code>http://localhost:3000</code>
+          </li>
+          <li>Listens for data from <code>device_1</code></li>
+          <li>
+            Visualizes an array of data values as shapes and saves it to a JSON
+            file
+          </li>
+          <li>Hit 's' key to save the file.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Your P5.js sketch -->
+    <script src="sketch.js"></script>
+  </body>
+</html>
