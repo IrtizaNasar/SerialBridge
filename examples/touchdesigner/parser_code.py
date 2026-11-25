@@ -67,10 +67,20 @@ def cook(scriptOp):
                             for k, v in p_data.items():
                                 DEVICE_STATE[clean_id][f'eeg_{k}'] = v
                                 
-                        # PPG
+                        # PPG (Muse 2)
                         elif p_type == 'ppg':
                             for k, v in p_data.items():
                                 DEVICE_STATE[clean_id][f'ppg_{k}'] = v
+
+                        # Optics / fNIRS (Muse S Athena): li_nir, ri_nir, li_ir, ri_ir
+                        elif p_type == 'optics':
+                            for k, v in p_data.items():
+                                DEVICE_STATE[clean_id][f'optics_{k}'] = v
+
+                        # Battery (Muse S Athena)
+                        elif p_type == 'battery':
+                            for k, v in p_data.items():
+                                DEVICE_STATE[clean_id][f'battery_{k}'] = v
                                 
                         # IMU (Combined Accel/Gyro)
                         elif p_type == 'imu':

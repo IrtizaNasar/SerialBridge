@@ -33,7 +33,7 @@ This folder contains examples demonstrating how to use the Serial Bridge with P5
 **How to use:**
 
 1. Start the Serial Bridge desktop app
-2. Add a connection with ID `device_1`
+2. Add a connection. The first one is called `device_1`, which is the ID these examples listen to. If you rename it (click the ID on the card), use the new name in `sketch.js` too.
 3. Upload one of the Arduino sketches to your board
 4. Open `examples/'your p5js example folder'/index.html` in your browser
 5. Observe the real-time visualization
@@ -94,7 +94,7 @@ A simple P5.js sketch that visualizes data from an Arduino in real-time as a cir
 - Receives data from `device_1`
 - Displays data as a circle
 - Stores data into a JSON object
-- Svaes JSON file on keypress
+- Saves JSON file on keypress
 
 #### `/store-multi-input-p5js/`
 
@@ -248,7 +248,6 @@ bridge.onData("device_1", (data) => {
 });
 
 // Send data to Arduino
-// Send data to Arduino
 bridge.send("device_1", "TOGGLE");
 
 // Monitor connection status
@@ -260,7 +259,7 @@ bridge.onStatus("device_1", (status, port) => {
 ### Advanced Features
 
 ```javascript
-// Listen to ALL Arduinos
+// Listen to every connection
 bridge.onData("*", (data, id) => {
   console.log(`${id} sent: ${data}`);
 });
@@ -287,7 +286,7 @@ await bridge.disconnectSerial("device_1");
 - **Baud Rate:** Ensure Arduino baud rate (default 9600) matches the Bridge connection.
 - **Data Format:** Send simple values (numbers or short strings) for best performance.
 - **Update Rate:** Avoid flooding the serial port; a 50-100ms delay in the Arduino loop is recommended.
-- **Multiple Arduinos:** Use unique IDs like `device_1`, `arduino_2`, etc.
+- **Multiple Arduinos:** Each connection has its own ID (`device_1`, `device_2`, …). Use the matching ID in your sketch.
 - **Debugging:** Use the browser console and Bridge app logs to troubleshoot.
 
 ## 🐛 Troubleshooting

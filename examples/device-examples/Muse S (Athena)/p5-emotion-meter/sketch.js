@@ -42,8 +42,8 @@ function setup() {
 
     // Create a simple button for calibration
     let btn = createButton('CALIBRATE (Sit Still)');
-    btn.position(width / 2 - 75, height - 80);
-    btn.size(150, 40);
+    btn.position(width / 2 - 100, height - 80);
+    btn.size(200, 40);
     btn.style('font-size', '16px');
     btn.style('cursor', 'pointer');
 

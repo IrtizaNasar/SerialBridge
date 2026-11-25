@@ -53,7 +53,7 @@ Default port is `3333`. To change:
 
 ### Update Parser Code (Recommended)
 
-> **Note:** The parser code in the component was last updated **8.12.25**. For the latest code that works with updated device profiles, update from `parser_code.py`.
+> **Note:** The parser code in the component was last updated **8.12.25**. For the latest code that works with updated device profiles, update from `parser_code.py`. This is needed for the **Muse S (Athena)** optics (`optics_li_nir` …) and battery channels.
 
 **To update:**
 
@@ -97,8 +97,8 @@ The parser creates channels with device ID prefixes:
 - `device_3_gyro_x`, `device_3_gyro_y`, `device_3_gyro_z`
 
 ### Muse S (Athena)
-- **EEG**: `device_3_eeg_tp9`, `device_3_eeg_af7`, `device_3_eeg_af8`, `device_3_eeg_tp10`, `device_3_eeg_aux`
-- **PPG / fNIRS**: `device_3_ppg_ch1` ... `device_3_ppg_ch6` (Left: IR/Red/Dark, Right: IR/Red/Dark)
+- **EEG**: `device_3_eeg_tp9`, `device_3_eeg_af7`, `device_3_eeg_af8`, `device_3_eeg_tp10`
+- **Optics / fNIRS**: `device_3_optics_li_nir`, `device_3_optics_ri_nir`, `device_3_optics_li_ir`, `device_3_optics_ri_ir` (left / right inner sensor, Near-IR and IR)
 - **Motion**: `device_3_accel_x/y/z`, `device_3_gyro_x/y/z`
 
 ### iPhone (Sensor Bridge App)
