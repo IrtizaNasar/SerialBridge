@@ -33,6 +33,7 @@
 - **Refreshed Interface**: A calmer, more consistent design and a new app icon.
 - **Clearer Help**: Plain-language messages for a busy port, missing permissions on Linux, a baud rate that doesn't match, and the RFID service.
 - **Signed & Notarised on macOS**: The app opens without any Terminal steps, and updates arrive automatically.
+- **Works with Loophole (macOS)**: With [Loophole](https://github.com/IrtizaNasar/Loophole) running, Serial Bridge's notifications appear in Loophole's notch, and uploads from Arduino IDE work while Serial Bridge is connected. See [Works with Loophole](#works-with-loophole-macos).
 
 ## What's New in V2.0
 
@@ -69,6 +70,7 @@
 - [Data Smoothing (For Beginners)](#data-smoothing-for-beginners)
 - [Session Management](#session-management)
 - [Dynamic Notch Notifications (macOS Only)](#dynamic-notch-notifications-macos-only)
+- [Works with Loophole (macOS)](#works-with-loophole-macos)
 - [Examples](#examples)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
@@ -1743,6 +1745,20 @@ While the feature is designed to be extremely lightweight, disabling it will com
 > This library provides a buttery-smooth, native-feeling Dynamic Island experience for Electron apps. It reverse-engineers the behavior of macOS's private APIs by calculating precise notch coordinates and managing transparent, click-through windows with hardware-accelerated CSS transitions that mimic Apple's spring physics.
 > 
 > Originally built for Serial Bridge's device status updates, it's now available as a polished, standalone package for any Electron developer looking to create native-quality notifications without writing Swift code.
+
+## Works with Loophole (macOS)
+
+[Loophole](https://github.com/IrtizaNasar/Loophole) is a notch app for Arduino IDE that shows when your board is ready to upload. When both apps are running, they work together:
+
+- **One notch.** Serial Bridge's notifications (connected, disconnected, reconnecting) appear in Loophole's notch, in its style, even while Arduino IDE is closed. Serial Bridge's own notch stays hidden, so the two never draw over each other.
+- **Uploads just work.** Only one program can use a board's port at a time, so normally you would disconnect in Serial Bridge before uploading. With Loophole, you don't need to: when you press Upload, Loophole pauses Serial Bridge as soon as Arduino IDE starts building, the upload goes through, and Serial Bridge reconnects by itself a few seconds later.
+- While paused, the connection card shows **Paused**. Press **Connect** to take the board back sooner.
+- **Verify** builds too, so it also pauses Serial Bridge for a moment; it reconnects a few seconds after the build ends.
+- Loophole's card also has a **Pause for upload** button, for when you want to free the port yourself.
+
+**Dynamic Notch** in Settings turns Serial Bridge's notifications off wherever they would appear, Loophole's notch included. Pausing for uploads keeps working either way. Loophole's notch is silent, so **Notch Sounds** only apply when Serial Bridge shows its own notch.
+
+Nothing changes on Windows, on Linux, or on a Mac without Loophole: Serial Bridge works exactly as described above.
 
 ## Examples
 
